@@ -1,0 +1,21 @@
+steps: 200
+interval_ms: 400
+
+appium:
+  server_url: "http://127.0.0.1:4723/wd/hub"
+  platformName: "Android"
+  deviceName: "emulator-5554"
+  automationName: "UiAutomator2"
+  noReset: true
+  # appPackage: "com.example.app"
+  # appActivity: ".MainActivity"
+
+gesture:
+  tap_prob: 0.5
+  drag_prob: 0.3
+  pinch_prob: 0.2
+  duration_ms: 300
+
+# v1 额外参数（v0 忽略）
+cv_downsample_w: 640
+cv_min_area_ratio: 0.002

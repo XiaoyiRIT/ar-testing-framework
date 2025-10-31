@@ -1,0 +1,46 @@
+# --- Python 基础忽略项 ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.log
+*.tmp
+*.bak
+
+# --- 虚拟环境 ---
+.venv/
+.venv311/
+venv/
+env/
+ENV/
+.conda/
+conda/
+.env/
+env.bak/
+python_env/
+
+# --- Jupyter / 临时输出 ---
+.ipynb_checkpoints/
+outputs/
+runs/
+logs/
+
+# --- IDE 相关 ---
+.vscode/
+.idea/
+
+# --- 系统文件 ---
+.DS_Store
+Thumbs.db
+
+# --- 模型/大文件（可用 LFS 替代）---
+*.pt
+*.onnx
+*.ckpt
+*.mp4
+*.mov
+*.avi
+*.png
+*.jpg
+*.jpeg
+*.webp
