@@ -1,0 +1,5 @@
+path: .
+train: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/random_s42_k0_f0_1763074479/train.txt
+val: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/random_s42_k0_f0_1763074479/val.txt
+test: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/random_s42_k0_f0_1763074479/test.txt
+names: {0: AR_Object}

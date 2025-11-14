@@ -1,0 +1,26 @@
+seed: 42
+device: "emulator-5554"
+yolo:
+  weights: "cv/yolo/runs/detect/train/weights/best.pt"
+  imgsz: 640
+  conf: 0.05
+  max_det: 100
+  device: "mps"
+#  device: "cpu"
+#  device: "cuda"
+  classes: [0, 1]
+  class_map:
+    0: "AR_Object"
+    1: "UI_Element"
+
+policy:
+  N: 10
+  M: 2
+thresholds:
+  tau_move: 0.03
+  tau_rot_deg: 8.0
+  tau_ssim: 0.08
+  use_diag_norm: true
+runtime:
+  post_wait_s: 0.4
+  out_dir: "runs/exp-$(date +%Y%m%d-%H%M%S)"
