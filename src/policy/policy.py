@@ -1,21 +1,42 @@
-# policy/policy.py
+# src/policy/policy.py
+# -*- coding: utf-8 -*-
+"""
+N/M policy for deciding whether an op is "supported" on a target.
+
+Usage:
+    policy = NMPolicy.from_cfg(cfg)
+    support = policy.decide_support(results)  # results: list[bool]
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 from typing import Dict, Any, List
 
+
+@dataclass
 class NMPolicy:
-    def __init__(self, N: int = 10, M: int = 2, rng=None):
-        self.N = N
-        self.M = M
-        self.rng = rng
+    N: int = 10
+    M: int = 2
 
-    def decide_support(self, op_type: str, trial_results: List[bool]) -> bool:
-        return sum(trial_results) >= self.M
+    @classmethod
+    def from_cfg(cls, cfg: Dict[str, Any]) -> "NMPolicy":
+        pc = cfg.get("policy", {})
+        return cls(
+            N=int(pc.get("N", 10)),
+            M=int(pc.get("M", 2)),
+        )
 
-    def sample_params(self, op_type: str) -> Dict[str, Any]:
+    def decide_support(self, results: List[bool]) -> bool:
         """
-        统一随机化操作参数的入口：
-          tap:   press_ms, jitter半径
-          drag:  方向(任意角)、长度、速度、多指偏移
-          rotate:角度(正/负)、半径、双指间距/速度
+        Args:
+            results: list of booleans for one (target, op) pair.
+
+        Returns:
+            True if the op is considered supported (>= M successes),
+            False otherwise.
         """
-        # TODO: 使用 self.rng 生成可重复的随机
-        return {}
+        if not results:
+            return False
+        ok_count = sum(1 for r in results if r)
+        return ok_count >= self.M

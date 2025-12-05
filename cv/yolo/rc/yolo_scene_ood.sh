@@ -2,7 +2,7 @@
 # NOTE the -l flag!
 #
 
-#SBATCH --job-name=Yolo_random
+#SBATCH --job-name=Yolo_Scene
 #SBATCH --mail-user=xy3371@g.rit.edu
 #SBATCH --mail-type=ALL
 #SBATCH --error=/home/xy3371/Yolo/RC_error/err_%j.txt
@@ -18,14 +18,12 @@
 
 conda activate yolo
 
-GLOG_vmodule=MemcachedClient=-1 \
-
 #Train
-srun python test_yolo_train_dynsplit.py train \
+python test_yolo_train_dynsplit.py train \
   --images-root datasets/myar/images \
   --labels-root datasets/myar/labels \
   --data-csv data_stat.csv \
   --split-mode scene-ood --group-col Scene \
   --ratios 0.7,0.15,0.15 \
-  --weights /home/xy3371/Yolo/weights/yolo11n.pt --epochs 150 --imgsz 640 \
-  --split-outdir .split
+  --weights /home/xy3371/Yolo/weights/yolo12n.pt --epochs 150 --imgsz 640 \
+  --split-outdir .split --seed 10

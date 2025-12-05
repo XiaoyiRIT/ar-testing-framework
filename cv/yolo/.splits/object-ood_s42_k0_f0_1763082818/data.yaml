@@ -1,8 +1,0 @@
-path: .
-train: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/object-ood_s42_k0_f0_1763082818/train.txt
-val: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/object-ood_s42_k0_f0_1763082818/val.txt
-test: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/object-ood_s42_k0_f0_1763082818/test.txt
-nc: 2
-names:
-  0: AR_Object
-  1: UI_Element

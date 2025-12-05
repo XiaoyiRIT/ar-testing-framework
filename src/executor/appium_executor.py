@@ -28,8 +28,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
-from common import actions
-from common import device
+from ..common import actions, device
 
 
 @dataclass

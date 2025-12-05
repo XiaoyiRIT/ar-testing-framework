@@ -19,8 +19,8 @@ from src.verifier.verifier import Verifier
 from src.policy.policy import NMPolicy
 
 from src.detector import YOLODetector
-from src.sampler.default_sampler import DefaultSampler
-from src.executor.appium_executor import AppiumExecutor
+from src.executor import AppiumExecutor
+from src.sampler import DefaultSampler
 
 
 def load_cfg(path: str) -> Dict[str, Any]:
@@ -79,11 +79,11 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def make_components(cfg: dict, device_id_override: str | None = None):
     detector = YOLODetector.from_cfg(cfg)
-    sampler = DefaultSampler(seed=cfg.get("seed", 42))
-    dev_id = device_id_override or cfg.get("device", "emulator-5554")
-    executor = AppiumExecutor(device_id=dev_id, cfg=cfg)
+    sampler = DefaultSampler.from_cfg(cfg)
+    dev_id = device_id_override or cfg.get("device", None)
+    executor = AppiumExecutor(cfg=cfg, device_id=dev_id)
 
-    driver = executor.driver  # 如果你需要显式 driver，可以暴露出来
+    driver = executor.driver
     return driver, detector, sampler, executor
 
 

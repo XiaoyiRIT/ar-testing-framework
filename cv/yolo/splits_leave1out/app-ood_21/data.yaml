@@ -1,0 +1,8 @@
+train: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/splits_leave1out/app-ood_21/train.txt
+val:   /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/splits_leave1out/app-ood_21/train.txt  # no val set, use train
+test:  /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/splits_leave1out/app-ood_21/test.txt
+
+nc: 2
+names:
+  0: AR_Object
+  1: UI_Element

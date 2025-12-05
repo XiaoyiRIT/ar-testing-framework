@@ -1,5 +1,0 @@
-path: .
-train: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/app-ood_s42_k0_f0_1763074688/train.txt
-val: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/app-ood_s42_k0_f0_1763074688/val.txt
-test: /Users/yangxiaoyi/Desktop/phd/project/newproject/program/cv/yolo/.splits/app-ood_s42_k0_f0_1763074688/test.txt
-names: {0: AR_Object}
