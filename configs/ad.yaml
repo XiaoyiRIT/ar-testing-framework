@@ -1,7 +1,7 @@
 seed: 42
-device: "emulator-5554"
+device: "53051FDAP0008M"
 yolo:
-  weights: "cv/yolo/runs/detect/train/weights/best.pt"
+  weights: "cv/yolo/runs/predict/exp4/weights/best.pt"
   imgsz: 640
   conf: 0.05
   max_det: 100
@@ -24,3 +24,17 @@ thresholds:
 runtime:
   post_wait_s: 0.4
   out_dir: "runs/exp-$(date +%Y%m%d-%H%M%S)"
+
+app:
+  # 你的 AR App 包名（必须）：例如 Sceneform 官方 sample 就类似：
+  package: com.google.ar.sceneform.samples.hellosceneform
+  
+  # 可选：入口 Activity（如果不知道，可以先设为 auto，让 executor 自己通过 adb 查）
+  # activity: .MainActivity
+  activity: auto
+
+  # 可选：Appium server 地址，若不写就用默认 http://127.0.0.1:4723
+  # server_url: http://127.0.0.1:4723
+
+  # 可选：启动方式（如果你的 App 是普通 launcher Activity，默认即可）
+  # launch_mode: "app"      # 或 "intent" 等，取决于你当初的实现

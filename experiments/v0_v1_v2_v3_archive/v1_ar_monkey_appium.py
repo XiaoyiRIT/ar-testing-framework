@@ -2,21 +2,22 @@
 # -*- coding: utf-8 -*-
 """
 v1_ar_monkey_appium.py — Appium (CV targeted + act-then-verify)
-+ verify_motion(basis=tap) + timing
++ MotionVerifier(日志 ground truth) + Timing
++ 新版 CV Verifier（src.verifier.motion_similarity 后端）
 
 改动要点：
-- 启动前 adb logcat -c，Logcat 采集从 -T 0 开始
-- 接入 common.verify_motion（含 tap），overall 基于 tap：overall = tap+drag+pinch+rotate
-  （place 视作 tap 的特例，仅展示不入 overall）
-- 接入 common.timing：总时长 / 模拟时长 / 平均每操作耗时
-- 支持 --print-interval 定时打印完整汇总；结束时打印 [final]/[compare]/[timing]
+- 顶层不再用顶层 common/，改为 src.common.*
+- 不再使用 cv.verify_motion.verify_action，
+  改为统一通过 src.verifier.verifier.Verifier.verify()
+- 仍然使用：
+    * cv.strategy_riri_invariant.locate 作为 AR 目标检测策略
+    * common.verify_motion.MotionVerifier 读取 Sceneform 日志作为 100% GT
+- 通过 Verifier.verify() 打印 CV 检测结果（你在 verifier.py 中已添加 print）
 
-CV 与操作验证：
-- 保留原 v1：cv.strategy_riri_invariant.locate 定位
-- 仍使用 cv.verify_motion.verify_action 做动作后的图像验证（不影响统计口径）
-
-python v1_ar_monkey_appium.py --pkg com.google.ar.sceneform.samples.hellosceneform \
-    --activity auto --rounds 50 --print-interval 10
+用法示例（在项目根目录 program 下）：
+  python v1_ar_monkey_appium.py \
+      --pkg com.google.ar.sceneform.samples.hellosceneform \
+      --activity auto --rounds 50 --print-interval 10
 """
 
 import argparse
@@ -28,18 +29,20 @@ import csv
 import threading
 import subprocess
 
-from common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
-from common.actions import tap, pinch_or_zoom, rotate, drag_line
-from common.policy_random import step as random_step  # 若你备用随机策略仍需要
+from src.common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
+from src.common.actions import tap, pinch_or_zoom, rotate, drag_line
+from src.common.policy_random import step as random_step  # 若你备用随机策略仍需要
 from cv.strategy_riri_invariant import locate as cv_locate
-from cv.verify_motion import verify_action  # 保留：动作后验证
 
-from common.verify_motion import MotionVerifier
-from common.timing import Timing
+from src.common.verify_motion import MotionVerifier
+from src.common.timing import Timing
+from src.verifier.verifier import Verifier  # 新版 CV Verifier（motion_similarity 后端）
+
 
 # ----------------- 工具 -----------------
 def _ms(t0: float) -> float:
     return (time.perf_counter() - t0) * 1000.0
+
 
 def clear_logcat(serial: str = None):
     cmd = ["adb"]
@@ -48,12 +51,14 @@ def clear_logcat(serial: str = None):
     cmd += ["logcat", "-c"]
     subprocess.run(cmd, check=False)
 
+
 def periodic_print(ver: MotionVerifier, interval_sec: int, stop_evt: threading.Event):
     while not stop_evt.is_set():
         time.sleep(interval_sec)
         if stop_evt.is_set():
             break
         print("[tick]\n" + ver.summary_str(), flush=True)
+
 
 def _map_img_to_window(x, y, w_img, h_img, W_win, H_win):
     # 若纵横比接近：按轴向缩放；否则按等比缩放 + 居中偏移（兼容 letterbox/状态栏）
@@ -69,6 +74,7 @@ def _map_img_to_window(x, y, w_img, h_img, W_win, H_win):
         y_off = int((H_win - h_img * s) * 0.5)
         return int(x * s + x_off), int(y * s + y_off)
 
+
 def _map_bbox_to_window(x, y, w, h, w_img, h_img, W_win, H_win):
     x1, y1 = _map_img_to_window(x, y, w_img, h_img, W_win, H_win)
     x2, y2 = _map_img_to_window(x + w, y + h, w_img, h_img, W_win, H_win)
@@ -76,64 +82,70 @@ def _map_bbox_to_window(x, y, w, h, w_img, h_img, W_win, H_win):
     Wb, Hb = max(1, abs(x2 - x1)), max(1, abs(y2 - y1))
     return X, Y, Wb, Hb
 
+
+def _map_vec_window_to_img(dx_win: float, dy_win: float,
+                           w_img: int, h_img: int,
+                           W_win: int, H_win: int):
+    """
+    近似逆变换：已知 window 坐标系下的位移向量 (dx_win, dy_win)，
+    估计在 screenshot (img) 坐标系下的位移向量 (dx_img, dy_img)。
+
+    注意：只考虑缩放，不考虑偏移，对 drag 这种局部位移来说足够近似。
+    """
+    ar_img = w_img / float(h_img)
+    ar_win = W_win / float(H_win)
+    if abs(ar_img - ar_win) < 0.03:
+        sx = W_win / float(w_img)
+        sy = H_win / float(h_img)
+        return dx_win / sx, dy_win / sy
+    else:
+        s = min(W_win / float(w_img), H_win / float(h_img))
+        return dx_win / s, dy_win / s
+
+
 # ----------------- 主流程 -----------------
-def run_monkey_v1(
-    pkg="com.rooom.app",
-    activity="auto",
-    serial=None,
-    rounds=250,
-    sleep_min=0.25,
-    sleep_max=0.85,
-    # 动作参数
-    rotate_steps=8,
-    warmup_wait=3.0,
-    seed=None,
-    drag_ms=(300, 900),
-    # —— CV 的“公共”参数：与具体策略无关 ——
-    cv_min_area_ratio=0.002,
-    cv_downsample_w=640,
-    # CSV
-    log_csv=None,
-    # 预触摸
-    prime_tap=True,
-    prime_pause_ms=80,
-    # 验证（动作后）
-    enable_verify=True,
-    verify_wait_ms=140,
-    drag_min_px=8.0,
-    drag_dir_cos=0.6,
-    verify_min_frac=0.5,
-    pinch_scale_thr=0.10,
-    rotate_min_deg=15.0,
-    # 打印
-    print_interval=10,
-):
+def run_monkey_v1(pkg="com.rooom.app",
+                  activity="auto",
+                  serial=None,
+                  rounds=250,
+                  sleep_min=0.25, sleep_max=0.85,
+                  safe=(0.12, 0.18, 0.88, 0.88),
+                  drag_ms=(300, 900),
+                  pinch_start=80, pinch_end=220,
+                  rotate_radius=(160, 260), rotate_angle=(30, 90), rotate_steps=8,
+                  warmup_wait=3.0, seed=None,
+                  print_interval=10,
+                  overall_include_tap=False,
+                  # v1: AR 目标检测 & 验证参数
+                  detect_min_area_ratio=0.0015,
+                  detect_angle_thr=20.0,
+                  detect_min_flow=0.08,
+                  detect_cam_thr=0.01,
+                  verify_wait_ms=500,
+                  drag_min_px=40.0,
+                  drag_dir_cos=0.6,
+                  pinch_scale_thr=0.08,
+                  rotate_min_deg=20.0,
+                  verify_min_frac=0.20,
+                  out_csv="v1_trials.csv",
+                  ):
     """
-    v1 主循环（CV 定位 → 执行动作 → 图像验证），并用 verify_motion 统计操作成功率（basis=tap）
+    v1: CV 定位 + act-then-verify + 日志 GT
+    - 使用 strategy_riri_invariant 做 AR object 定位
+    - 使用 src.verifier.verifier.Verifier 做 CV 后验验证（motion_similarity 后端）
+    - 使用 MotionVerifier 通过 logcat 提取 GT
     """
+
     if seed is not None:
         random.seed(seed)
 
-    # 计时从此刻开始
+    # 计时：程序总时长从此开始
     tim = Timing()
 
-    # 解析 Activity 并启动驱动
-    if activity in (None, "auto"):
-        act = resolve_main_activity(pkg, serial)
-        activity = act if act else None
-        print(f"[resolve] {pkg} -> activity: {activity or 'Intent-Launcher'}")
-
-    drv = make_driver(pkg=pkg, activity=activity, serial=serial, warmup_wait=warmup_wait)
-    W, H = get_window_size(drv)
-    print(f"[v1] {pkg}/{activity or 'auto'}, screen {W}x{H}")
-
-    # 统计器：清空旧日志，从“当前时刻”开始；overall 基于 tap
-    clear_logcat(serial)
-    ver = MotionVerifier(overall_basis="tap")
-    extra = ["-T", "0"]
-    # 如需限定 tag：verify_motion 内部已按 AR_OP 解析；这里仍使用 -s 保持高效
-    extra = ["-T", "0"]  # 已经在 Popen 命令里加了 -s TAG:D
-    ver.start_from_adb(serial=serial, extra_logcat_args=extra)
+    # 清空旧日志，启动 MotionVerifier（从当前时刻），可带 serial（多设备时可用）
+    clear_logcat(serial=serial)
+    ver = MotionVerifier(include_tap_in_overall=overall_include_tap)
+    ver.start_from_adb(serial=serial, extra_logcat_args=["-T", "0"])
 
     # 定时打印线程
     stop_evt = threading.Event()
@@ -142,263 +154,280 @@ def run_monkey_v1(
         printer = threading.Thread(target=periodic_print, args=(ver, print_interval, stop_evt), daemon=True)
         printer.start()
 
-    # CSV
-    csv_fp = csv_writer = None
-    if log_csv:
-        d = os.path.dirname(log_csv)
-        if d:
-            os.makedirs(d, exist_ok=True)
-        csv_fp = open(log_csv, "w", newline="", encoding="utf-8")
-        csv_writer = csv.writer(csv_fp)
-        csv_writer.writerow([
-            "step","detected","verified",
-            "cx_img","cy_img","bbox_x","bbox_y","bbox_w","bbox_h",
-            "message","cap_ms","cv_ms","action_ms","verify&wait_ms","total_ms"
-        ])
+    # 解析/启动 Appium driver
+    if activity in (None, "auto"):
+        act = resolve_main_activity(pkg, serial)
+        activity = act if act else None
+        print(f"[resolve] {pkg} -> activity: {activity or 'Intent-Launcher'}")
 
-    # 先抓 prev
-    prev = capture_bgr(drv)
+    drv = make_driver(pkg=pkg, activity=activity, serial=serial, warmup_wait=warmup_wait)
+    W, H = get_window_size(drv)
+    L, T, R, B = int(W * safe[0]), int(H * safe[1]), int(W * safe[2]), int(H * safe[3])
+    print(f"[v1-appium] {pkg}/{activity or 'auto'}, screen {W}x{H}, safe=({L},{T})~({R},{B})")
 
     # 模拟操作计时开始
     tim.start_sim()
 
+    # ---- 新版 CV Verifier：基于 motion_similarity 后端 ----
+    # 这里把 tau_move 固定为 0.03（即可视为“至少移动 3% 对角线长度”），
+    # 其他阈值从命令行参数继承，方便你后续调参。
+    verifier_cfg = {
+        "thresholds": {
+            "tau_move": 0.03,             # 对角线 3% 的最小位移阈值
+            "tau_rot_deg": rotate_min_deg,
+            "tau_scale": pinch_scale_thr,
+            "min_frac": verify_min_frac,
+        }
+    }
+    cv_verifier = Verifier.from_cfg(verifier_cfg)
+
+    # 输出 CSV
+    csv_f = None
+    csv_w = None
+    if out_csv:
+        csv_f = open(out_csv, "w", newline="", encoding="utf-8")
+        csv_w = csv.writer(csv_f)
+        csv_w.writerow([
+            "round", "op", "x_img", "y_img", "w_img", "h_img",
+            "x_win", "y_win", "w_win", "h_win",
+            "verified", "verified_hits", "detect_ms", "act_ms", "verify_ms"
+        ])
+
+    prev = None
     verified_hits = 0
+
     try:
         for i in range(1, rounds + 1):
-            T_loop = time.perf_counter()
+            print(f"\n[round {i}/{rounds}]", flush=True)
 
-            # 1) 抓屏
-            T = time.perf_counter()
+            # 1) 截图 + CV 定位
+            t0 = time.perf_counter()
             curr = capture_bgr(drv)
-            t_cap = _ms(T)
+            detect_ms = _ms(t0)
+            if curr is None:
+                print("[error] capture_bgr returned None, skip round.", flush=True)
+                time.sleep(0.5)
+                continue
 
-            # 2) CV 定位
-            T = time.perf_counter()
+            h_img, w_img = curr.shape[:2]
+            print(f"[detect] frame size = {w_img}x{h_img}, detect_min_area_ratio={detect_min_area_ratio}", flush=True)
+
+            t0 = time.perf_counter()
             det = cv_locate(
-                curr, prev,
-                min_area_ratio=cv_min_area_ratio,
-                max_w=cv_downsample_w,
-                debug_profile=True
+                curr,
+                prev_bgr=prev,
+                min_area_ratio=detect_min_area_ratio,
+                max_w=720,
+                angle_thr_deg=detect_angle_thr,
+                min_flow_mag=detect_min_flow,
+                camera_move_thr=detect_cam_thr,
+                debug_profile=True,
             )
-            t_cv = _ms(T)
+            detect_ms += _ms(t0)
 
-            # 3) 决策 & 注入
-            T = time.perf_counter()
-            act_name = None
-            msg = ""
-            bbox_win = None
-            cx_out = cy_out = bx = by = bw = bh = ""
-            detected = 1 if det is not None else 0
-            verified = 0
+            if det is None:
+                print("[detect] no AR target found, random tap safety area", flush=True)
+                x = random.randint(L, R - 1)
+                y = random.randint(T, B - 1)
+                tap(drv, x, y)
+                prev = curr
+                time.sleep(random.uniform(sleep_min, sleep_max))
+                continue
 
-            if det is not None:
-                # —— 图像空间（用于 verify）——
-                cx_img, cy_img = det["center"]
-                x_img, y_img, w_img_box, h_img_box = det["bbox"]
+            (cx_img, cy_img) = det["center"]
+            (x_img, y_img, w_box_img, h_box_img) = det["bbox"]
+            print(f"[detect] center={det['center']}, bbox={det['bbox']}", flush=True)
 
-                # —— 窗口空间（用于手势注入与日志展示）——
-                h_img, w_img = curr.shape[:2]
-                cx, cy = _map_img_to_window(cx_img, cy_img, w_img, h_img, W, H)
-                Xw, Yw, Ww, Hw = _map_bbox_to_window(x_img, y_img, w_img_box, h_img_box, w_img, h_img, W, H)
-                bbox_win = (Xw, Yw, Ww, Hw)
+            # 2) 选择操作类型
+            op = random.choice(["drag", "pinch", "rotate", "tap"])
+            # op 可以在这里做更多约束，例如根据 bbox 大小/位置来选
 
-                # CSV 写“截图坐标”，便于离线核对
-                cx_out, cy_out, bx, by, bw, bh = cx_img, cy_img, x_img, y_img, w_img_box, h_img_box
+            # 3) 将 bbox 映射到 window 坐标，生成实际注入操作
+            X, Y, Wb, Hb = _map_bbox_to_window(x_img, y_img, w_box_img, h_box_img, w_img, h_img, W, H)
+            cx_win = X + Wb // 2
+            cy_win = Y + Hb // 2
 
-                # 先轻触（可关）
-                if prime_tap:
-                    tap(drv, cx, cy, press_ms=random.randint(40, 120))
-                    if prime_pause_ms > 0:
-                        time.sleep(prime_pause_ms / 1000.0)
+            print(f"[op] op={op}, center_win=({cx_win},{cy_win}), bbox_win=({X},{Y},{Wb},{Hb})", flush=True)
 
-                # 在目标动作中随机挑一个
-                op_name = random.choice(["pinch_in", "rotate", "drag"])
-                act_name = op_name
+            # 将 drag 的 window 位移向量也转换到 image 坐标系，用于 CV 校验
+            drag_dx_img = 0.0
+            drag_dy_img = 0.0
 
-                # 关键：pre_act 直接用 curr，减少一次抓屏
-                pre_act = curr
+            # 4) 执行动作
+            pre_act = curr.copy()
+            t_act0 = time.perf_counter()
+            if op == "drag":
+                # 选择一个简单的 drag 方向
+                dx = random.randint(int(drag_min_px), int(drag_min_px * 1.8))
+                dy = 0
+                x2 = max(0, min(W - 1, cx_win + dx))
+                y2 = max(0, min(H - 1, cy_win + dy))
+                drag_line(drv, cx_win, cy_win, x2, y2,
+                          ms=random.randint(drag_ms[0], drag_ms[1]))
+                # 将 window 位移向量映射回 image 坐标系
+                drag_dx_img, drag_dy_img = _map_vec_window_to_img(
+                    x2 - cx_win, y2 - cy_win, w_img, h_img, W, H
+                )
+                act_name = "drag"
 
-                if op_name == "pinch_in":
-                    s = max(40, min(w_img_box//2, h_img_box//2, 220))
-                    e = max(20, min(s//2, 120))
-                    pinch_or_zoom(drv, cx, cy, start_dist=s, end_dist=e,
-                                  duration_ms=random.randint(450, 900))
-                    msg = f"{'tap+' if prime_tap else ''}pinch at ({cx},{cy}) bbox={bbox_win}"
+            elif op == "pinch":
+                # 在 bbox 周围做 pinch_in
+                pinch_or_zoom(drv,
+                              cx_win, cy_win,
+                              start_dist=pinch_start,
+                              end_dist=pinch_end,
+                              pinch_in=True,
+                              ms=600)
+                act_name = "pinch_in"
 
-                elif op_name == "rotate":
-                    radius = max(60, min(int(max(Ww, Hw)/2), 260))
-                    angle = random.choice([45, 60, 90])
-                    rotate(drv, cx, cy, radius=radius, angle_deg=angle,
-                           duration_ms=random.randint(600, 1100), steps=rotate_steps)
-                    msg = f"{'tap+' if prime_tap else ''}rotate at ({cx},{cy}) bbox={bbox_win}"
-
-                else:  # drag
-                    max_step = min(int(min(W, H) / 3), int(0.6 * max(Ww, Hw)))
-                    dist = max(40, max_step)
-                    dx, dy = random.choice([(dist, 0), (-dist, 0), (0, dist), (0, -dist)])
-                    x2 = max(1, min(W - 2, cx + dx))
-                    y2 = max(1, min(H - 2, cy + dy))
-                    dur = random.randint(*drag_ms)
-                    drag_line(drv, cx, cy, x2, y2, duration_ms=dur)
-                    msg = f"{'tap+' if prime_tap else ''}drag from ({cx},{cy}) to ({x2},{y2}) bbox={bbox_win}"
+            elif op == "rotate":
+                r = random.randint(rotate_radius[0], rotate_radius[1])
+                ang = random.uniform(rotate_angle[0], rotate_angle[1])
+                rotate(drv, cx_win, cy_win, radius=r, angle=ang, steps=rotate_steps)
+                act_name = "rotate"
 
             else:
-                # MISS：未命中目标（这里不降级用随机手势；保持 v1 口径）
-                act_name = "miss"
-                msg = "MISS"
+                tap(drv, cx_win, cy_win)
+                act_name = "tap"
 
-            t_action = _ms(T)
+            act_ms = _ms(t_act0)
 
-            # 4) （可选）动作后等待 + 验证（使用图像坐标）
-            T = time.perf_counter()
-            if enable_verify and det is not None:
-                if verify_wait_ms > 0:
-                    time.sleep(verify_wait_ms / 1000.0)
-                post_act = capture_bgr(drv)
-                ok = verify_action(
-                    act_name,
-                    pre_act,               # before (image)
-                    post_act,              # after  (image)
-                    (cx_img, cy_img),      # center in image coords
-                    (x_img, y_img, w_img_box, h_img_box),  # bbox in image coords
-                    {
-                        "scale_thr": pinch_scale_thr,
-                        "min_frac": verify_min_frac,
-                        "min_deg": rotate_min_deg,
-                        "min_motion_px": drag_min_px,
-                        "min_dir_cos": drag_dir_cos,
-                    }
+            # 5) CV 验证（基于 Verifier + motion_similarity）
+            verified = 0
+            verify_ms = 0.0
+
+            if verify_wait_ms > 0:
+                time.sleep(verify_wait_ms / 1000.0)
+
+            t_ver0 = time.perf_counter()
+            post_act = capture_bgr(drv)
+            verify_ms = _ms(t_ver0)
+
+            if post_act is not None and act_name in ("drag", "pinch_in", "rotate"):
+                region = {
+                    "center_xy": (float(cx_img), float(cy_img)),
+                    "bbox": (float(x_img), float(y_img),
+                             float(w_box_img), float(h_box_img)),
+                }
+                params = {}
+                if act_name == "drag":
+                    params["dx"] = float(drag_dx_img)
+                    params["dy"] = float(drag_dy_img)
+                elif act_name == "pinch_in":
+                    # 对于模糊 pinch 操作，scale_sign < 0 表示 pinch_in
+                    params["scale_sign"] = -1
+
+                ok = cv_verifier.verify(
+                    op=act_name,
+                    pre_bgr=pre_act,
+                    post_bgr=post_act,
+                    region=region,
+                    params=params,
                 )
                 verified = 1 if ok else 0
                 if verified:
                     verified_hits += 1
-            t_verify_wait = _ms(T)
 
-            # 5) 打印阶段耗时（bbox 用窗口坐标展示）
-            t_total = _ms(T_loop)
-            print(
-                f"[v1 r{i:03d}] cap={t_cap:.1f}ms  cv={t_cv:.1f}ms  action={t_action:.1f}ms  "
-                f"verify&wait={t_verify_wait:.1f}ms  TOTAL={t_total:.1f}ms  "
-                f"{'HIT' if det is not None else 'MISS'}:{act_name}"
-                + (f"  bbox={bbox_win}" if det is not None else "")
-            )
+            print(f"[verify] act={act_name}, verified={bool(verified)}, "
+                  f"verified_hits={verified_hits}, detect_ms={detect_ms:.1f}, "
+                  f"act_ms={act_ms:.1f}, verify_ms={verify_ms:.1f}", flush=True)
 
-            # 6) 与旧版兼容的一行摘要
-            print(f"[{verified_hits:03d}/{i:03d}/{rounds}] {msg}")
+            # 6) 将 CV 结果喂给 MotionVerifier，以便和日志 GT 做对比
+            #    kind 使用 act_name（drag / pinch_in / rotate / tap），
+            #    MotionVerifier 内部会做归一化到 drag/pinch/rotate/tap。
+            ver.feed(kind=act_name, ok=bool(verified))
 
-            # 7) CSV（记录图像坐标，避免与 verify 不一致）
-            if csv_writer:
-                csv_writer.writerow([
-                    i, 1 if det is not None else 0, verified,
-                    cx_out, cy_out, bx, by, bw, bh,
-                    msg, f"{t_cap:.1f}", f"{t_cv:.1f}", f"{t_action:.1f}", f"{t_verify_wait:.1f}", f"{t_total:.1f}"
+            # 7) 写 CSV
+            if csv_w is not None:
+                csv_w.writerow([
+                    i, act_name,
+                    x_img, y_img, w_box_img, h_box_img,
+                    X, Y, Wb, Hb,
+                    verified, verified_hits,
+                    f"{detect_ms:.2f}", f"{act_ms:.2f}", f"{verify_ms:.2f}"
                 ])
 
-            # 8) 准备下一轮
-            prev = curr
+            prev = post_act if post_act is not None else curr
 
-            # 9) 等待下轮
+            # 8) 休眠
             time.sleep(random.uniform(sleep_min, sleep_max))
 
-        print(f"[v1] verified hits: {verified_hits}/{rounds} ({(100.0*verified_hits/max(1, rounds)):.1f}%)")
-
     finally:
-        # 停止定时打印线程
+        # 停止定时打印
         stop_evt.set()
-        if printer:
+        if printer is not None:
             printer.join(timeout=1.0)
-        # 模拟时长停止
+
+        # 模拟操作结束
         tim.stop_sim()
-        # CSV 关闭
-        if csv_fp:
-            csv_fp.close()
-        # 关闭 driver
+        tim.set_ops_total(rounds)
+
+        # 打印最终统计
+        print("\n[final]\n" + ver.summary_str(), flush=True)
+        print("\n[compare]\n" + ver.summary_compare_str(), flush=True)
+        print("\n[timing]\n" + tim.summary_str(), flush=True)
+
+        if csv_f is not None:
+            csv_f.close()
+
         try:
             drv.quit()
         except Exception:
             pass
 
-        # 平均每操作耗时：用 rounds 作为发起的手势数
-        tim.set_ops_total(rounds)
 
-        # 打印统计
-        snap = ver.snapshot()
-        print("[final]\n" + ver.summary_str(), flush=True)
+def main(argv=None):
+    p = argparse.ArgumentParser(description="v1 AR Monkey (Appium + CV + log GT)")
+    p.add_argument("--pkg", type=str, required=True, help="App package name")
+    p.add_argument("--activity", type=str, default="auto", help="Main activity (or 'auto')")
+    p.add_argument("--serial", type=str, default=None, help="ADB serial (optional)")
+    p.add_argument("--rounds", type=int, default=50, help="Number of operations")
+    p.add_argument("--sleep-min", type=float, default=0.25)
+    p.add_argument("--sleep-max", type=float, default=0.85)
+    p.add_argument("--safe", type=float, nargs=4, default=(0.12, 0.18, 0.88, 0.88))
+    p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--print-interval", type=int, default=10)
+    p.add_argument("--overall-include-tap", action="store_true")
 
-        # 以 basis=tap 口径统计到的“尝试数”（tap+drag+pinch+rotate）
-        counted_attempts = (
-            snap["tap"]["total"] +
-            snap["drag"]["total"] +
-            snap["pinch"]["total"] +
-            snap["rotate"]["total"]
-        )
-        missing = rounds - counted_attempts
-        print(f"[compare] counted_attempts={counted_attempts}  rounds={rounds}  missing={missing} "
-              f"(likely long-press or no-op)", flush=True)
+    # v1 CV detect & verify params
+    p.add_argument("--detect-min-area-ratio", type=float, default=0.0015)
+    p.add_argument("--detect-angle-thr", type=float, default=20.0)
+    p.add_argument("--detect-min-flow", type=float, default=0.08)
+    p.add_argument("--detect-cam-thr", type=float, default=0.01)
+    p.add_argument("--verify-wait-ms", type=int, default=500)
+    p.add_argument("--drag-min-px", type=float, default=40.0)
+    p.add_argument("--drag-dir-cos", type=float, default=0.6)
+    p.add_argument("--pinch-scale-thr", type=float, default=0.08)
+    p.add_argument("--rotate-min-deg", type=float, default=20.0)
+    p.add_argument("--verify-min-frac", type=float, default=0.20)
+    p.add_argument("--out-csv", type=str, default="v1_trials.csv")
 
-        print(tim.summary_str(), flush=True)
-
-        # 结束采集
-        ver.stop()
-
-
-def main():
-    ap = argparse.ArgumentParser(description="v1 Appium AR-Monkey (CV targeted + act-then-verify) + verify_motion(basis=tap) + timing")
-    ap.add_argument("--serial", help="ADB device serial（可选；单设备可不填）")
-    ap.add_argument("--pkg", default="com.rooom.app")
-    ap.add_argument("--activity", default="auto")
-    ap.add_argument("--rounds", type=int, default=250)
-    ap.add_argument("--seed", type=int)
-
-    # CV 策略参数
-    ap.add_argument("--cv_min_area_ratio", type=float, default=0.002)
-    ap.add_argument("--cv_downsample_w", type=int, default=640)
-
-    # 先轻触（可选）
-    ap.add_argument("--prime_tap", type=int, default=0,
-                    help="1=先轻触再追加手势；0=直接做手势（默认1）")
-    ap.add_argument("--prime_pause_ms", type=int, default=80,
-                    help="轻触后可选暂停毫秒数，0表示不暂停（默认80）")
-
-    # 验证调参（可选）
-    ap.add_argument("--verify_wait_ms", type=int, default=140)
-    ap.add_argument("--drag_min_px", type=float, default=8.0)
-    ap.add_argument("--drag_dir_cos", type=float, default=0.6)
-    ap.add_argument("--verify_min_frac", type=float, default=0.5)
-    ap.add_argument("--pinch_scale_thr", type=float, default=0.10)
-    ap.add_argument("--rotate_min_deg", type=float, default=15.0)
-
-    # CSV
-    ap.add_argument("--log_csv", default=None, help="可选的 per-step CSV 日志路径")
-
-    # 打印
-    ap.add_argument("--print-interval", type=int, default=10, help="每隔 N 秒打印一次统计；0=仅结束时打印")
-
-    args = ap.parse_args()
+    args = p.parse_args(argv)
 
     run_monkey_v1(
         pkg=args.pkg,
         activity=args.activity,
         serial=args.serial,
         rounds=args.rounds,
+        sleep_min=args.sleep_min,
+        sleep_max=args.sleep_max,
+        safe=tuple(args.safe),
         seed=args.seed,
-        cv_min_area_ratio=args.cv_min_area_ratio,
-        cv_downsample_w=args.cv_downsample_w,
-        log_csv=args.log_csv,
-        prime_tap=bool(args.prime_tap),
-        prime_pause_ms=args.prime_pause_ms,
+        print_interval=args.print_interval,
+        overall_include_tap=args.overall_include_tap,
+        detect_min_area_ratio=args.detect_min_area_ratio,
+        detect_angle_thr=args.detect_angle_thr,
+        detect_min_flow=args.detect_min_flow,
+        detect_cam_thr=args.detect_cam_thr,
         verify_wait_ms=args.verify_wait_ms,
         drag_min_px=args.drag_min_px,
         drag_dir_cos=args.drag_dir_cos,
-        verify_min_frac=args.verify_min_frac,
         pinch_scale_thr=args.pinch_scale_thr,
         rotate_min_deg=args.rotate_min_deg,
-        print_interval=args.print_interval,
+        verify_min_frac=args.verify_min_frac,
+        out_csv=args.out_csv,
     )
 
+
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n[Interrupted]")
-        sys.exit(130)
+    sys.exit(main())

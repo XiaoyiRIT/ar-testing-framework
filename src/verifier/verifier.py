@@ -100,7 +100,7 @@ class Verifier:
                 "min_dir_cos": 0.6,
                 "min_frac": self.config.min_frac,
             }
-            return ms.verify_action(
+            ok = ms.verify_action(
                 op="drag",
                 pre_bgr=pre_bgr,
                 post_bgr=post_bgr,
@@ -109,13 +109,21 @@ class Verifier:
                 extra=extra,
             )
 
+            # ✅ 在这里打印 drag 的检测结果
+            print(
+                f"[Verifier] op=drag ok={ok} "
+                f"center=({cx:.1f},{cy:.1f}) "
+                f"bbox={bbox_tuple} dx={dx:.1f} dy={dy:.1f}"
+            )
+            return ok
+
         # ---- rotate family ---------------------------------------------- #
         if op.startswith("rotate"):
             extra = {
                 "min_deg": self.config.tau_rot_deg,
                 "min_frac": self.config.min_frac,
             }
-            return ms.verify_action(
+            ok = ms.verify_action(
                 op="rotate",
                 pre_bgr=pre_bgr,
                 post_bgr=post_bgr,
@@ -123,6 +131,11 @@ class Verifier:
                 bbox=bbox_tuple,
                 extra=extra,
             )
+            print(
+                f"[Verifier] op=rotate ok={ok} "
+                f"center=({cx:.1f},{cy:.1f}) bbox={bbox_tuple}"
+            )
+            return ok
 
         # ---- pinch / zoom family ---------------------------------------- #
         if op.startswith("pinch") or op.startswith("zoom"):
@@ -142,7 +155,7 @@ class Verifier:
                 "scale_thr": self.config.tau_scale,
                 "min_frac": self.config.min_frac,
             }
-            return ms.verify_action(
+            ok = ms.verify_action(
                 op=ms_op,
                 pre_bgr=pre_bgr,
                 post_bgr=post_bgr,
@@ -150,6 +163,11 @@ class Verifier:
                 bbox=bbox_tuple,
                 extra=extra,
             )
+            print(
+                f"[Verifier] op={ms_op} ok={ok} "
+                f"center=({cx:.1f},{cy:.1f}) bbox={bbox_tuple}"
+            )
+            return ok
 
         # ---- tap: 暂时不做视觉验证，直接返回 False --------------------- #
         # 后续你可以接 FoELS 或 SSIM 做「有无变化」检测。

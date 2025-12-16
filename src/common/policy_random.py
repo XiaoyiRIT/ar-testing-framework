@@ -5,9 +5,11 @@
 #   Generates coordinates + calls coordinate-only actions.
 # ------------------------------------------------------------
 
+# src/common/policy_random.py
 import random
 from typing import Tuple
-from common.actions import tap, drag_line, long_press, pinch_or_zoom, rotate
+from .actions import tap, drag_line, long_press, pinch_or_zoom, rotate
+
 
 def _rand_point(w: int, h: int, margin_ratio: float = 0.05) -> Tuple[int,int]:
     L = int(w*margin_ratio); T = int(h*margin_ratio)

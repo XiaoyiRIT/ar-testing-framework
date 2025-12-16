@@ -1,9 +1,9 @@
 # Project Context
 
 - **Path**: `/Users/yangxiaoyi/Desktop/phd/project/newproject/program`
-- **Time (UTC)**: 2025-11-14 15:50:42Z
+- **Time (UTC)**: 2025-12-05 16:54:15Z
 - **Git Branch**: main
-- **Git Commit**: d18c655
+- **Git Commit**: 735d5be
 
 ## Directory Tree (depth=4)
 
@@ -13,35 +13,40 @@ program/
 │   └── ad.yaml
 ├── cv/
 │   ├── yolo/
-│   │   ├── .splits/
-│   │   │   ├── app-ood_s42_k0_f0_1763074688/
-│   │   │   ├── app-ood_s42_k0_f0_1763074801/
-│   │   │   ├── app-ood_s42_k0_f0_1763075731/
-│   │   │   ├── app-ood_s42_k0_f0_1763076437/
-│   │   │   ├── app-ood_s42_k0_f0_1763076739/
-│   │   │   ├── app-ood_s42_k0_f0_1763077232/
-│   │   │   ├── last/
-│   │   │   ├── object-ood_s42_k0_f0_1763082818/
-│   │   │   ├── random_s42_k0_f0_1763074479/
-│   │   │   ├── random_s42_k0_f0_1763074634/
-│   │   │   ├── random_s42_k0_f0_1763075880/
-│   │   │   ├── random_s42_k0_f0_1763075969/
-│   │   │   └── last.yaml
+│   │   ├── .split/
 │   │   ├── rc/
 │   │   │   ├── yolo_app_ood.sh
+│   │   │   ├── yolo_app_ood_kfold.sh
+│   │   │   ├── yolo_app_ood_leave1out.sh
 │   │   │   ├── yolo_obj_ood.sh
+│   │   │   ├── yolo_obj_ood_kfold.sh
 │   │   │   ├── yolo_random.sh
 │   │   │   ├── yolo_scene_ood.sh
+│   │   │   ├── yolo_scene_ood_kfold.sh
+│   │   │   ├── yolo_scene_ood_leave1out.sh
 │   │   │   └── yolo_test.sh
+│   │   ├── splits_leave1out/
+│   │   │   ├── app-ood_11/
+│   │   │   ├── app-ood_21/
+│   │   │   └── scene-ood_bedroom_low_small_indoor/
 │   │   ├── testimages/
+│   │   ├── check_leaveoneout_runs.py
+│   │   ├── check_splits_groups.py
+│   │   ├── check_splits_mutual_exclusion.py
+│   │   ├── crossval_eval.py
 │   │   ├── data_stat.csv
+│   │   ├── data_stat_sample.csv
+│   │   ├── eval_yolo_center_hit_debug.py
+│   │   ├── inspect_app_column.py
+│   │   ├── leaveoneout_eval.py
 │   │   ├── myar2.yaml
 │   │   ├── myar_scene.yaml
 │   │   ├── myar_simp.yaml
 │   │   ├── suggest_k.py
 │   │   ├── sync_data_stat_with_images.py
 │   │   ├── test_yolo_train.py
-│   │   └── test_yolo_train_dynsplit.py
+│   │   ├── test_yolo_train_dynsplit.py
+│   │   └── yolo_train_leave_one_group.py
 │   ├── strategy_bgmedian.py
 │   ├── strategy_flow_cluster.py
 │   ├── strategy_FoELS.py
@@ -53,12 +58,14 @@ program/
 ├── docs/
 ├── experiments/
 │   ├── notebooks/
+│   │   └── framework_status.md
 │   ├── playground/
 │   │   ├── delete_images_without_labels.py
 │   │   ├── diagnose_orphan_labels.py
 │   │   ├── find_orphan_labels.py
 │   │   └── fix_label_to_zero.py
 │   └── v0_v1_v2_v3_archive/
+│       ├── smoke.py
 │       ├── v0_ar_monkey_adb.py
 │       ├── v0_ar_monkey_appium.py
 │       ├── v1_ar_monkey_appium.py
@@ -82,17 +89,20 @@ program/
 │   │   ├── __init__.py
 │   │   └── run_discovery.py
 │   ├── executor/
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   └── appium_executor.py
 │   ├── policy/
 │   │   ├── __init__.py
 │   │   └── policy.py
 │   ├── sampler/
-│   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   └── default_sampler.py
 │   ├── verifier/
 │   │   ├── backends/
 │   │   │   └── motion_similarity.py
 │   │   ├── __init__.py
 │   │   └── verifier.py
+│   ├── __init__.py
 │   └── __main__.py
 ├── tests/
 ├── .gitignore
@@ -100,9 +110,9 @@ program/
 ├── config.yaml
 ├── gen_project_context.py
 ├── project_context.md
+├── project_status_summary.md
 ├── README.md
 ├── requirements.txt
-├── smoke.py
 ├── yolo_adb_screencap.py
 ├── yolo_scratch.py
 └── yolo_val.py
@@ -110,32 +120,34 @@ program/
 
 ## File Stats
 
-- Files counted (excluded patterns applied): **13325**
-- Total size: **7.2 MB**
+- Files counted (excluded patterns applied): **102**
+- Total size: **2.0 MB**
 
 ### Top 15 Largest Files (excluded patterns applied)
 
 | Size | Path |
 |---:|---|
-| 448.0 KB | `cv/yolo/data_stat.csv` |
-| 242.5 KB | `cv/yolo/runs/eval-ctr/exp/report.csv` |
-| 238.2 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763076437/train.txt` |
-| 238.2 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763076739/train.txt` |
-| 235.4 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763077232/train.txt` |
-| 211.1 KB | `cv/yolo/.splits/random_s42_k0_f0_1763075880/train.txt` |
-| 211.1 KB | `cv/yolo/.splits/random_s42_k0_f0_1763074479/train.txt` |
-| 211.1 KB | `cv/yolo/.splits/random_s42_k0_f0_1763074634/train.txt` |
-| 211.1 KB | `cv/yolo/.splits/random_s42_k0_f0_1763075969/train.txt` |
-| 211.0 KB | `cv/yolo/.splits/last/train.txt` |
-| 211.0 KB | `cv/yolo/.splits/object-ood_s42_k0_f0_1763082818/train.txt` |
-| 157.1 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763075731/test.txt` |
-| 144.8 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763075731/val.txt` |
+| 453.1 KB | `cv/yolo/data_stat.csv` |
+| 298.9 KB | `cv/yolo/splits_leave1out/app-ood_21/train.txt` |
+| 293.6 KB | `cv/yolo/splits_leave1out/scene-ood_bedroom_low_small_indoor/train.txt` |
+| 293.1 KB | `cv/yolo/splits_leave1out/app-ood_11/train.txt` |
 | 0.0 B | `chat_context.md` |
-| 121.1 KB | `cv/yolo/.splits/app-ood_s42_k0_f0_1763074801/train.txt` |
+| 92.7 KB | `project_context.md` |
+| 34.8 KB | `cv/yolo/runs/predict/exp4/results.csv` |
+| 26.2 KB | `cv/yolo/test_yolo_train_dynsplit.py` |
+| 18.8 KB | `cv/yolo/test_yolo_train.py` |
+| 17.7 KB | `cv/yolo/eval_yolo_center_hit_debug.py` |
+| 17.2 KB | `cv/strategy_FoELS.py` |
+| 14.7 KB | `experiments/v0_v1_v2_v3_archive/v1_ar_monkey_appium.py` |
+| 14.7 KB | `experiments/v0_v1_v2_v3_archive/v2_ar_monkey_appium.py` |
+| 13.9 KB | `experiments/v0_v1_v2_v3_archive/v3_ar_monkey_appium.py` |
+| 13.4 KB | `cv/yolo/yolo_train_leave_one_group.py` |
 
 ## Recent Commits
 
 ```
+735d5be Update
+a91cf4d Big update
 d18c655 Create README.md
 7143e3e init: import existing project
 ```
@@ -890,129 +902,910 @@ def locate(
 ... (truncated)
 ```
 
+### `cv/yolo/check_leaveoneout_runs.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+检查 leave-one-group-out 的 YOLO 训练结果是否完整。
+
+用法示例：
+  python check_leaveoneout_runs.py \
+    --project runs/app_ood_leave1out \
+    --ood-type app-ood \
+    --k 22
+"""
+
+import argparse
+from pathlib import Path
+from typing import Dict, List
+
+
+def find_run_dir_for_idx(project: Path, ood_type: str, idx: int) -> List[Path]:
+    """
+    在 project 目录下查找名称以 "{ood_type}_idx{idx}_" 开头的子目录。
+    例如：app-ood_idx2_11
+    """
+    prefix = f"{ood_type}_idx{idx}_"
+    matches: List[Path] = []
+    for d in project.iterdir():
+        if d.is_dir() and d.name.startswith(prefix):
+            matches.append(d)
+    return matches
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Check incomplete leave-one-group-out YOLO runs."
+    )
+    parser.add_argument(
+        "--project",
+        type=str,
+        required=True,
+        help="YOLO 训练的 project 目录（与 yolo_train_leave_one_group.py 中的 --project 一致）。",
+    )
+    parser.add_argument(
+        "--ood-type",
+        type=str,
+        required=True,
+        choices=["app-ood", "scene-ood"],
+        help="当前检查的 OOD 类型。",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        required=True,
+        help="总的 group 数量（例如 app 一共有 22 个）。",
+    )
+    parser.add_argument(
+        "--check-best",
+        action="store_true",
+        help="额外检查每个 run 的 weights/best.pt 是否存在（默认只检查目录存在）。",
+    )
+
+    args = parser.parse_args()
+
+    project = Path(args.project)
+    if not project.exists():
+        print(f"[ERROR] project 目录不存在: {project}")
+        return
+
+    missing_run: List[int] = []
+    multi_run: Dict[int, List[str]] = {}
+    no_best: List[int] = []
+    ok: List[int] = []
+
+    for idx in range(args.k):
+        runs = find_run_dir_for_idx(project, args.ood_type, idx)
+        if not runs:
+            missing_run.append(idx)
+            continue
+        if len(runs) > 1:
+            multi_run[idx] = [str(d) for d in runs]
+
+        # 默认认为只要目录存在，就算“有训练记录”
+        run_dir = runs[0]
+
+        if args.check-best:
+            best_path = run_dir / "weights" / "best.pt"
+            if not best_path.exists():
+                no_best.append(idx)
+            else:
+                ok.append(idx)
+        else:
+            ok.append(idx)
+
+    print("\n========== CHECK SUMMARY ==========")
+    print(f"project   : {project}")
+    print(f"ood_type  : {args.ood_type}")
+    print(f"k (total) : {args.k}")
+
+    print(f"\n[OK] 有训练目录的 index: {sorted(ok)}")
+
+    if missing_run:
+        print(f"\n[WARN] 缺少 run 目录的 index: {missing_run}")
+    else:
+        print("\n[OK] 所有 index 都有对应的 run 目录。")
+
+    if multi_run:
+        print("\n[WARN] 某些 index 对应多个 run 目录（可能重复运行）:")
+        for idx, paths in multi_run.items():
+            print(f"  idx={idx}:")
+            for p in paths:
+                print(f"    - {p}")
+
+    if args.check-best:
+        if no_best:
+            print(f"\n[WARN] 没有 weights/best.pt 的 index: {no_best}")
+        else:
+            print("\n[OK] 所有 run 都包含 weights/best.pt。")
+
+    print("\n========== END ==========")
+
+
+... (truncated)
+```
+
+### `cv/yolo/check_splits_groups.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+检查 .split（或指定 splits 目录）下每个 split 子目录中：
+1. train/val/test 是否在“文件级别”互斥；
+2. 指定的 group 列（如 App/Object/Scene）在“group 级别”是否互斥。
+
+- 文件级别：同一图片路径是否同时出现在 train/val/test；
+- group 级别：例如 App 维度上，train 与 test 是否共享同一个 App。
+
+使用示例：
+
+python check_splits_groups.py \
+  --split-outdir .split \
+  --data-csv data_stat.csv \
+  --group-cols App,Object,Scene
+
+如只想检查 App：
+
+python check_splits_groups.py \
+  --split-outdir .split \
+  --data-csv data_stat.csv \
+  --group-cols App
+"""
+
+import argparse
+from pathlib import Path
+from typing import Dict, Set, Tuple, List
+
+import pandas as pd
+
+
+# ---------- 通用小工具 ----------
+
+def load_list(path: Path) -> Set[str]:
+    """读取一个 txt 文件，每行一个路径，返回去重后的 set。"""
+    if not path.exists():
+        return set()
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return {ln.strip() for ln in lines if ln.strip()}
+
+
+def _find_filename_column(df: pd.DataFrame) -> str:
+    """根据列名自动推测 filename 列。"""
+    lower_map = {c.lower(): c for c in df.columns}
+    for key in ["filename", "file", "image", "img"]:
+        if key in lower_map:
+            return lower_map[key]
+    # 没有匹配到时，用第一列，但给出提醒
+    print(f"[WARN] 未找到典型 filename 列，默认使用第一列: {df.columns[0]!r}")
+    return df.columns[0]
+
+
+# ---------- group 映射构建 ----------
+
+def build_name_to_groups(
+    data_csv: Path,
+    group_cols: List[str],
+) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+    """
+    从 data_csv 读取 filename 和指定 group 列，构建映射：
+
+    name_to_groups[basename][group_col] = group_id
+
+    返回:
+      - name_to_groups: { "xxx.jpg": { "App": "xxxApp", "Object": "obj1", ... }, ... }
+      - valid_group_cols: 实际在 CSV 中存在的 group 列（自动过滤不存在的）
+    """
+    df = pd.read_csv(data_csv)
+    if df.empty:
+        raise RuntimeError(f"CSV 为空: {data_csv}")
+
+    filename_col = _find_filename_column(df)
+    lower_map = {c.lower(): c for c in df.columns}
+
+    # 过滤出真正存在的 group 列
+    valid_group_cols: List[str] = []
+    for g in group_cols:
+        if g in df.columns:
+            valid_group_cols.append(g)
+        elif g.lower() in lower_map:
+            valid_group_cols.append(lower_map[g.lower()])
+        else:
+            print(f"[WARN] group 列 {g!r} 不在 CSV 中，跳过该列。")
+
+    if not valid_group_cols:
+        print("[WARN] 未找到任何有效的 group 列，不会进行 group 级别检查。")
+        return {}, []
+
+    print(f"[INFO] 使用 filename 列: {filename_col!r}")
+    print(f"[INFO] 使用 group 列: {valid_group_cols}")
+
+    name_to_groups: Dict[str, Dict[str, str]] = {}
+
+    for _, row in df.iterrows():
+        raw_name = str(row[filename_col])
+        basename = Path(raw_name).name  # 仅使用文件名部分
+        grp_dict = name_to_groups.setdefault(basename, {})
+        for col in valid_group_cols:
+            grp_dict[col] = str(row[col])
+
+    return name_to_groups, valid_group_cols
+
+
+# ---------- 单个 split 目录检查 ----------
+
+def check_one_split_dir_files(split_dir: Path) -> Tuple[bool, str]:
+    """
+    检查单个 split 子目录中 train/val/test 在“文件级别”是否互斥。
+
+    返回:
+      ok, msg
+        ok = True  : 互斥
+        ok = False : 存在重复文件
+    """
+    train_txt = split_dir / "train.txt"
+    val_txt = split_dir / "val.txt"
+    test_txt = split_dir / "test.txt"
+
+... (truncated)
+```
+
+### `cv/yolo/check_splits_mutual_exclusion.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+检查 .split（或指定 splits 目录）下每个 split 子目录中
+train/val/test 的数据是否互斥。
+
+- 若 train/val/test 之间有图片路径重叠，则视为“数据泄露”，打印该目录名。
+- 默认只检查文件级别（同一图片路径是否被重复使用）。
+- 使用方式示例：
+
+  python check_splits_mutual_exclusion.py --split-outdir .split
+
+"""
+
+import argparse
+from pathlib import Path
+from typing import Set, Tuple
+
+
+def load_list(path: Path) -> Set[str]:
+    """读取一个 txt 文件，每行一个路径，返回去重后的 set。"""
+    if not path.exists():
+        return set()
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return {ln.strip() for ln in lines if ln.strip()}
+
+
+def check_one_split_dir(split_dir: Path) -> Tuple[bool, str]:
+    """
+    检查单个 split 子目录中 train/val/test 是否互斥。
+
+    返回值:
+      (ok, msg)
+        ok = True  : 互斥（没有重叠）
+        ok = False : 存在重叠（数据泄露），msg 中包含细节
+    """
+    train_txt = split_dir / "train.txt"
+    val_txt = split_dir / "val.txt"
+    test_txt = split_dir / "test.txt"
+
+    # 没有 train.txt 的目录直接跳过（可能是 last.yaml 等）
+    if not train_txt.exists():
+        return True, "no train.txt, skipped"
+
+    train_set = load_list(train_txt)
+    val_set = load_list(val_txt)
+    test_set = load_list(test_txt)
+
+    # 至少有一个集合为空时，也照样检查，但一般视为“没有泄露”
+    inter_tr_va = train_set & val_set
+    inter_tr_te = train_set & test_set
+    inter_va_te = val_set & test_set
+
+    leak = False
+    parts = []
+
+    if inter_tr_va:
+        leak = True
+        parts.append(f"train ∩ val = {len(inter_tr_va)}")
+    if inter_tr_te:
+        leak = True
+        parts.append(f"train ∩ test = {len(inter_tr_te)}")
+    if inter_va_te:
+        leak = True
+        parts.append(f"val ∩ test = {len(inter_va_te)}")
+
+    if leak:
+        detail = "; ".join(parts)
+        return False, detail
+
+    return True, "OK"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="检查 splits 目录下 train/val/test 是否互斥（文件级别）。"
+    )
+    parser.add_argument(
+        "--split-outdir",
+        type=str,
+        default=".split",
+        help="保存各个 split 子目录的根目录（默认 .split）",
+    )
+
+    args = parser.parse_args()
+    split_root = Path(args.split_outdir)
+
+    if not split_root.exists():
+        raise FileNotFoundError(f"split-outdir 不存在: {split_root}")
+
+    leak_dirs = []
+    checked = 0
+    skipped = 0
+
+    print(f"[INFO] 检查 splits 根目录: {split_root}")
+
+    for d in sorted(split_root.iterdir(), key=lambda p: p.name):
+        if not d.is_dir():
+            continue
+
+        ok, msg = check_one_split_dir(d)
+        if msg == "no train.txt, skipped":
+            skipped += 1
+            continue
+
+        checked += 1
+        if ok:
+            print(f"[OK]    {d.name}: {msg}")
+        else:
+            print(f"[LEAK]  {d.name}: {msg}")
+            leak_dirs.append(d.name)
+
+    print("\n========== SUMMARY ==========")
+    print(f"已检查 split 子目录数量: {checked}")
+    print(f"跳过（无 train.txt）数量: {skipped}")
+    if not leak_dirs:
+        print("✅ 未发现 train/val/test 之间的文件级数据泄露。")
+    else:
+        print("⚠ 发现以下目录存在数据泄露（train/val/test 有重复图片）：")
+... (truncated)
+```
+
+### `cv/yolo/crossval_eval.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+对 K 折训练好的 YOLO 模型进行一键式 cross validation 评测。
+
+逻辑：
+- 根据 split-mode / seed / kfold / fold-index 规则，自动匹配：
+  - .split 下对应的 test.txt
+  - runs/train 下对应的 best.pt
+- 对每个 fold 调用 eval_yolo_center_hit_debug.py 做评测
+- 解析其中的 Success Rate，最后输出每折结果 + mean/std
+
+使用示例（app-ood, k=5）：
+
+python crossval_eval.py \
+  --split-mode app-ood \
+  --kfold 5 \
+  --seed 10 \
+  --weights-stem yolo12n \
+  --split-outdir .split \
+  --train-project runs/train \
+  --eval-script eval_yolo_center_hit_debug.py \
+  --labels-root /home/xy3371/Yolo/datasets/myar/labels \
+  --class-id 0 --imgsz 640 --conf 0.05
+
+"""
+
+import argparse
+import math
+import re
+import statistics
+import subprocess
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+
+def find_split_dir(
+    split_outdir: Path,
+    mode: str,
+    seed: int,
+    kfold: int,
+    fold_index: int,
+) -> Path:
+    """在 split_outdir 下找到当前 fold 对应的目录."""
+    prefix = f"{mode}_s{seed}_k{kfold}_f{fold_index}_"
+    candidates = [
+        d for d in split_outdir.iterdir()
+        if d.is_dir() and d.name.startswith(prefix)
+    ]
+    if not candidates:
+        raise FileNotFoundError(
+            f"在 {split_outdir} 下找不到前缀为 {prefix!r} 的 split 目录，"
+            f"请确认已经跑过对应 fold 的训练。"
+        )
+    # 如有多个，按名字排序选最后一个（时间戳更大）
+    candidates.sort(key=lambda p: p.name)
+    chosen = candidates[-1]
+    print(f"[INFO] fold={fold_index}: 使用 split 目录: {chosen}")
+    return chosen
+
+
+def build_exp_name(
+    mode: str,
+    weights_stem: str,
+    split_dir_name: str,
+) -> str:
+    """根据 split 目录名推导训练 exp 目录名."""
+    # split_dir_name 例如: "app-ood_s42_k5_f0_1763082385"
+    if not split_dir_name.startswith(f"{mode}_"):
+        raise ValueError(
+            f"split 目录名 {split_dir_name!r} 不以 {mode + '_'} 开头，无法推导 exp name"
+        )
+    suffix = split_dir_name[len(mode) + 1 :]  # 去掉 "app-ood_"
+    exp_name = f"{mode}_{weights_stem}_{suffix}"
+    return exp_name
+
+
+def run_single_eval(
+    eval_script: Path,
+    image_list: Path,
+    labels_root: Path,
+    weights: Path,
+    class_id: int,
+    imgsz: int,
+    conf: float,
+    iou: float,
+    project: Path,
+    name: str,
+    save_vis: bool = False,
+) -> float:
+    """调用 eval_yolo_center_hit_debug.py 做一次评测，并解析 Success Rate."""
+    cmd = [
+        "python",
+        str(eval_script),
+        "--image_list",
+        str(image_list),
+        "--labels-root",
+        str(labels_root),
+        "--weights",
+        str(weights),
+        "--class-id",
+        str(class_id),
+        "--imgsz",
+        str(imgsz),
+        "--conf",
+        str(conf),
+        "--iou",
+        str(iou),
+        "--project",
+        str(project),
+        "--name",
+        name,
+    ]
+    if save_vis:
+        cmd.append("--save-vis")
+
+    print(f"[CMD] {' '.join(cmd)}")
+
+    proc = subprocess.run(
+... (truncated)
+```
+
+### `cv/yolo/eval_yolo_center_hit_debug.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+YOLO 评测脚本（中心点命中 GT）+ 调试信息 + 可视化错误样本 + Top-K 试错机制
+
+功能：
+1. 从 --image_list 或 --test-dir 读取待评测图片；
+2. 检查：
+   - list 文件是否存在；
+   - list 中有多少“原始行 / 非空行”；
+   - 有多少路径实际存在文件；
+3. 对于每张图片：
+   - 读取对应 label（YOLO txt，class cx cy w h）中的指定 class（--class-id）；
+   - 用 YOLO 模型预测该图片；
+   - 对指定 class：
+       * 按置信度排序，取前 K（由 --topk 控制，默认 1）；
+       * 只要前 K 个 box 中有任意一个的中心点落在 GT bbox 内，就算预测成功；
+4. 输出详细统计 + CSV 报告 + （可选）可视化结果：
+   - vis/success    : 命中 GT 的样本
+   - vis/fail       : 有 GT 和预测，但中心未命中的样本
+   - vis/no_label   : 没有 GT label 的样本
+   - vis/no_pred    : 有 GT 但该类没有预测框的样本
+
+示例：
+python eval_yolo_center_hit_debug.py \
+  --image_list .split/scene-ood_s11_k0_f0_1763737407/test.txt \
+  --labels-root /home/xy3371/Yolo/datasets/myar/labels \
+  --weights runs/train/scene-ood_yolo12n_s11_k0_f0_1763737407/weights/best.pt \
+  --class-id 0 --imgsz 640 --conf 0.05 --topk 3 --save-vis
+"""
+
+import argparse
+import csv
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+from PIL import Image, ImageDraw
+from ultralytics import YOLO
+
+
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+
+
+# ----------------- 工具函数 -----------------
+
+
+def pick_device(prefer: str = "auto") -> str:
+    import torch
+    import platform
+
+    if prefer != "auto":
+        return prefer
+    if platform.system() == "Darwin" and torch.backends.mps.is_available():
+        return "mps"
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def debug_load_list(list_file: Path) -> List[Path]:
+    print(f"[DEBUG] 准备读取 image_list: {list_file}")
+    if not list_file.exists():
+        print(f"[ERROR] image_list 文件不存在：{list_file}")
+        return []
+
+    raw_lines: List[str] = list_file.read_text(encoding="utf-8").splitlines()
+    print(f"[DEBUG] list 文件原始行数（包含空行）: {len(raw_lines)}")
+
+    stripped = [ln.strip() for ln in raw_lines]
+    non_empty = [ln for ln in stripped if ln]
+    print(f"[DEBUG] list 文件非空行数: {len(non_empty)}")
+
+    images: List[Path] = []
+    missing: List[str] = []
+
+    for ln in non_empty:
+        p = Path(ln)
+        if not p.is_absolute():
+            # 相对路径按当前工作目录解析
+            p = p.resolve()
+        if p.exists():
+            images.append(p)
+        else:
+            missing.append(str(p))
+
+    print(f"[DEBUG] 实际存在的图片数量: {len(images)}")
+    print(f"[DEBUG] 丢失的图片数量: {len(missing)}")
+
+    if images:
+        print("[DEBUG] 前 5 个有效图片路径示例：")
+        for p in images[:5]:
+            print(f"         {p}")
+    if missing:
+        print("[WARN] 前 5 个不存在的图片路径示例：")
+        for s in missing[:5]:
+            print(f"         {s}")
+
+    return images
+
+
+def draw_vis(
+    img_path: Path,
+    save_path: Path,
+    gt_xyxy: Optional[Tuple[float, float, float, float]],
+    pred_xyxy: Optional[Tuple[float, float, float, float]],
+    pred_center: Optional[Tuple[float, float]],
+) -> None:
+    """
+    可视化一张图片：
+    - 绿色框：GT bbox
+    - 红色框：预测 bbox（top-1）
+    - 红点：用于评估的预测中心（可以是 top-1 或命中的那个）
+    """
+    im = Image.open(img_path).convert("RGB")
+    draw = ImageDraw.Draw(im)
+
+    # GT 框（绿色）
+    if gt_xyxy is not None:
+... (truncated)
+```
+
+### `cv/yolo/inspect_app_column.py`
+
+```text
+import pandas as pd
+import unicodedata
+
+df = pd.read_csv("data_stat.csv")
+
+print("=== 原始唯一值列表（repr 显示隐藏字符）===\n")
+unique_vals = df["App"].astype(str).unique()
+for v in unique_vals:
+    print(repr(v))
+
+print("\n=== 清洗前，每个 App 值的计数 ===\n")
+print(df["App"].astype(str).value_counts())
+
+print("\n=== 显示每个 App 字符的 Unicode 码位（帮助定位隐藏字符）===\n")
+
+def show_unicode(s):
+    return " ".join(f"{c}({ord(c):04X})" for c in s)
+
+for v in unique_vals:
+    print(f"{repr(v)} → {show_unicode(v)}")
+```
+
+### `cv/yolo/leaveoneout_eval.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Leave-One-Group-Out YOLO evaluator
+
+功能：
+- 针对 leave-one-out 版本的 app-ood / scene-ood 训练结果，
+  自动遍历对应 split 目录和训练权重，调用 eval_yolo_center_hit_debug.py，
+  解析每个 group 的 Success Rate，最后输出整体统计（mean / std）。
+
+假设目录结构：
+  splits_root/
+    app-ood_1/
+      test.txt
+      labels_root.txt
+    app-ood_2/
+      test.txt
+      labels_root.txt
+    ...
+  train_project/
+    app-ood_idx0_1/
+      weights/best.pt
+    app-ood_idx1_2/
+      weights/best.pt
+    ...
+
+使用示例（app-ood）：
+  python leaveoneout_eval.py \
+    --ood-type app-ood \
+    --splits-dir splits_leave1out_app \
+    --train-project runs/app_ood_leave1out \
+    --eval-script eval_yolo_center_hit_debug.py \
+    --class-id 0 --imgsz 640 --conf 0.05 --iou 0.6 --topk 1
+
+使用示例（scene-ood）：
+  python leaveoneout_eval.py \
+    --ood-type scene-ood \
+    --splits-dir splits_leave1out_scene \
+    --train-project runs/scene_ood_leave1out \
+    --eval-script eval_yolo_center_hit_debug.py \
+    --class-id 0 --imgsz 640 --conf 0.05 --iou 0.6 --topk 1
+"""
+
+import argparse
+import re
+import statistics
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+
+def find_split_dirs_for_ood(splits_root: Path, ood_type: str) -> List[Path]:
+    """
+    在 splits_root 下查找当前 ood_type 对应的所有 split 目录。
+    目录名形如：app-ood_11 / scene-ood_LivingRoom 等。
+    """
+    prefix = f"{ood_type}_"
+    dirs = [
+        d for d in splits_root.iterdir()
+        if d.is_dir() and d.name.startswith(prefix)
+    ]
+    dirs.sort(key=lambda p: p.name)
+    return dirs
+
+
+def find_train_dir_for_group(
+    train_project: Path,
+    ood_type: str,
+    safe_group: str,
+) -> Optional[Path]:
+    """
+    在 train_project 下查找给定 group 对应的训练目录。
+
+    假定训练目录名形如：
+      app-ood_idx2_11
+    即：以 "{ood_type}_idx" 开头，以 "_{safe_group}" 结尾。
+    """
+    prefix = f"{ood_type}_idx"
+    suffix = f"_{safe_group}"
+
+    candidates: List[Path] = []
+    for d in train_project.iterdir():
+        if not d.is_dir():
+            continue
+        name = d.name
+        if name.startswith(prefix) and name.endswith(suffix):
+            candidates.append(d)
+
+    if not candidates:
+        return None
+
+    # 如有多个（比如重复训练），按名称排序选最后一个
+    candidates.sort(key=lambda p: p.name)
+    return candidates[-1]
+
+
+def run_single_eval(
+    eval_script: Path,
+    image_list: Path,
+    labels_root: Path,
+    weights: Path,
+    class_id: int,
+    imgsz: int,
+    conf: float,
+    iou: float,
+    topk: int,
+    project: Path,
+    name: str,
+    save_vis: bool = False,
+) -> float:
+    """
+    调用 eval_yolo_center_hit_debug.py 做一次评测，并解析 Success Rate。
+    """
+
+    cmd = [
+        "python",
+        str(eval_script),
+        "--image_list",
+        str(image_list),
+... (truncated)
+```
+
 ### `cv/yolo/suggest_k.py`
 
 ```text
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-python suggest_k.py --data-csv data_stat.csv --group-col app
-python suggest_k.py --data-csv data_stat.csv --group-col scene
-python suggest_k.py --data-csv data_stat.csv --group-col object
+根据 data_stat.csv 和某个 group 列（App/Object/Scene 等），
+自动推荐一个较合适的 K，用于 GroupKFold。
 
+示例用法：
+python suggest_k.py --data-csv data_stat.csv --group-col App
+python suggest_k.py --data-csv data_stat.csv --group-col Scene
+python suggest_k.py --data-csv data_stat.csv --group-col Object
+
+注意：
+- 本脚本的评估逻辑和训练脚本中的 KFold 保持一致：
+  * 在 “unique groups” 上做 GroupKFold（每个 group 权重相同）
+  * 再用 group -> 样本数 来计算每折的验证集样本比例
 """
 
 import argparse
-from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 
-def load_groups(data_csv: Path, group_col: str) -> np.ndarray:
+# ----------------- 数据加载：group+样本数 -----------------
+
+
+def load_group_counts(
+    data_csv: Path,
+    group_col: str,
+) -> Tuple[np.ndarray, Dict[str, int], int]:
+    """
+    从 CSV 中读取 group 列，返回：
+
+    - unique_groups: np.ndarray[str]，所有不重复 group id
+    - group_counts: dict[group -> 样本数量]
+    - total_samples: int，总样本数（行数）
+
+    会做一层列名的大小写容错。
+    """
     df = pd.read_csv(data_csv)
+    if df.empty:
+        raise RuntimeError(f"CSV 为空：{data_csv}")
+
+    # 列名大小写容错
+    lower_map = {c.lower(): c for c in df.columns}
     if group_col not in df.columns:
-        # 尝试大小写容错
-        lower_map = {c.lower(): c for c in df.columns}
         if group_col.lower() not in lower_map:
             raise ValueError(f"CSV 中找不到列 {group_col!r}，实际列有：{list(df.columns)}")
         group_col = lower_map[group_col.lower()]
-    groups = df[group_col].astype(str).values
-    return groups
+
+    groups_series = df[group_col].astype(str)
+    total_samples = int(len(groups_series))
+
+    # group -> 样本数量
+    group_counts_series = groups_series.value_counts()
+    unique_groups = group_counts_series.index.astype(str).to_numpy()
+    group_counts = {g: int(group_counts_series[g]) for g in group_counts_series.index}
+
+    return unique_groups, group_counts, total_samples
+
+
+# ----------------- 评估某个 K -----------------
 
 
 def evaluate_k_for_groups(
-    groups: np.ndarray,
+    unique_groups: np.ndarray,
+    group_counts: Dict[str, int],
+    total_samples: int,
     k: int,
     target_val_ratio: float,
     min_val_samples: int,
     min_val_groups: int,
     min_train_groups: int,
 ) -> Optional[Dict]:
-    """对给定的 K 做一次 GroupKFold 评估，若不满足约束则返回 None。"""
-    n = len(groups)
-    gkf = GroupKFold(n_splits=k)
+    """
+    在 unique_groups 上做一次 GroupKFold 评估，并基于“样本数”统计每折的验证集比例。
 
-    val_sizes: List[int] = []
+    参数：
+    - unique_groups: 所有 group id（每个只出现一次）
+    - group_counts: group -> 样本数量
+    - total_samples: 数据集中总样本数
+    - k: 候选的 K
+    - 其它参数为各种约束/目标
+
+    返回：
+    - 若不满足约束（val 过小 / group 太少等），返回 None
+    - 否则返回统计信息 dict：
+      {
+        "k", "score",
+        "val_ratio_mean", "val_ratio_std",
+        "min_val_size", "min_val_groups", "min_train_groups"
+      }
+    """
+    num_groups = len(unique_groups)
+    if k > num_groups:
+        # K 不能大于 group 数
+        return None
+
+    # 在 “group 级别” 上做 GroupKFold
+    gkf = GroupKFold(n_splits=k)
+    dummy_X = np.zeros(num_groups)
+    folds = gkf.split(dummy_X, y=None, groups=unique_groups)
+
+    val_sample_sizes: List[int] = []
     val_group_counts: List[int] = []
     train_group_counts: List[int] = []
 
-    dummy_X = np.zeros(n)
+    for train_idx, val_idx in folds:
+        # 当前折的 group id
+        train_groups = unique_groups[train_idx]
+        val_groups = unique_groups[val_idx]
 
-    for train_idx, val_idx in gkf.split(dummy_X, groups=groups):
-        val_sizes.append(len(val_idx))
-        val_group_counts.append(len(np.unique(groups[val_idx])))
-        train_group_counts.append(len(np.unique(groups[train_idx])))
+        # 样本数：把这些 group 对应的样本数加起来
+        val_size = int(sum(group_counts[g] for g in val_groups))
+        train_size = int(sum(group_counts[g] for g in train_groups))
 
-    val_sizes = np.array(val_sizes)
-    val_ratios = val_sizes / float(n)
-    val_group_counts = np.array(val_group_counts)
-    train_group_counts = np.array(train_group_counts)
-
-    # 硬约束过滤
-    if val_sizes.min() < min_val_samples:
-        return None
-    if val_group_counts.min() < min_val_groups:
-        return None
-    if train_group_counts.min() < min_train_groups:
-        return None
-
-    val_ratio_mean = float(val_ratios.mean())
-    val_ratio_std = float(val_ratios.std())
-    min_val_size = int(val_sizes.min())
-    min_val_groups = int(val_group_counts.min())
-    min_train_groups = int(train_group_counts.min())
-
-    # 评分：越小越好
-    score = abs(val_ratio_mean - target_val_ratio) / max(target_val_ratio, 1e-6) + val_ratio_std
-
-    return {
-        "k": k,
-        "score": score,
-        "val_ratio_mean": val_ratio_mean,
-        "val_ratio_std": val_ratio_std,
-        "min_val_size": min_val_size,
-        "min_val_groups": min_val_groups,
-        "min_train_groups": min_train_groups,
-    }
-
-
-def suggest_k(
-    groups: np.ndarray,
-    max_k: int = 10,
-    target_val_ratio: float = 0.2,
-    min_val_samples: int = 100,
-    min_val_groups: int = 1,
-    min_train_groups: int = 2,
-) -> Dict:
-    """遍历 K=2..max_k，自动选择最合适的 K。"""
-    unique_groups = np.unique(groups)
-    num_groups = len(unique_groups)
-    n = len(groups)
-
-    print(f"[INFO] 总样本数: {n}")
-    print(f"[INFO] 不同 group 数量: {num_groups}")
-
-    # K 不能超过 group 数
-    max_k_feasible = min(max_k, num_groups)
-    if max_k_feasible < 2:
-        raise ValueError("group 数量太少，无法做 KFold（至少需要 2 个不同 group）。")
-
-    candidates: List[Dict] = []
-
-    for k in range(2, max_k_feasible + 1):
-        print(f"\n[CHECK] 评估 K = {k} ...")
-        stats = evaluate_k_for_groups(
-            groups=groups,
-            k=k,
-            target_val_ratio=target_val_ratio,
-            min_val_samples=min_val_samples,
-            min_val_groups=min_val_groups,
-            min_train_groups=min_train_groups,
-        )
+        val_sample_sizes.append(val_size)
 ... (truncated)
 ```
 
@@ -1273,7 +2066,35 @@ def cmd_test(args):
 ```text
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+Dynamic split + YOLO training/testing script.
+
+功能概述
+--------
+1. 从 data_stat.csv 动态划分 train/val/test：
+   - random              : 随机划分样本（不看 group）
+   - app-ood             : 按 App 列分组做 OOD
+   - object-ood          : 按 Object 列分组做 OOD
+   - scene-ood           : 按 Scene 列分组做 OOD
+   - group-ood           : 按任意指定列分组做 OOD (--group-col)
+
+2. 支持 group 级 K 折 (GroupKFold)，用于 OOD 稳定评估：
+   - kfold=0 或 1 : 不使用 K 折
+   - kfold>1      : 按 group 做 K 折，在当前折中再根据样本数切出 train/test
+
+3. 生成的 data.yaml 固定为 2 类：
+   - 0: AR_Object
+   - 1: UI_Element
+
+4. 训练输出目录自动命名为：
+   <split-mode>_<weights-stem>_s<seed>_k<kfold>_f<fold>_<timestamp>
+   例如：
+   app-ood_yolo11n_s42_k0_f0_1763082385
+   避免多任务/slurm 并发写同一 exp 目录。
+
+5. 提供一个简单的 test 子命令做无标签批量推理。
+
 用法示例：
 
 # 1) 随机分割（不复制文件；从 CSV 读取文件名并写入三份 list.txt）
@@ -1290,73 +2111,49 @@ python test_yolo_train_dynsplit.py train \
   --labels-root /Users/yangxiaoyi/datasets/myar/labels \
   --data-csv data_stat.csv \
   --split-mode app-ood --group-col App \
-  --ratios 0.7,0.15,0.15 \
+  --ratios 0.7,0.15,0.15 --seed 10\
   --weights yolo11n.pt --epochs 100 --imgsz 640
   
   --kfold 5 --fold-index 0 
 
 # 3) 仅评测（中心点命中 GT 算成功），从 list 文件读入
 python test_yolo_train_dynsplit.py eval \
-  --image-list .splits/last/test.txt \
-  --labels-root /path/dataset/labels \
-  --weights runs/train/exp/weights/best.pt \
+  --image-list split/random_s42_k0_f0_1763082385/test.txt \
+  --labels-root /Users/yangxiaoyi/datasets/myar/labels \
+  --weights runs/train/exp4/weights/best.pt \
   --class-id 0 --imgsz 640 --conf 0.05 --save-vis
-
-说明：
-- 本脚本不会复制或移动任何图像/标签，只会在 .splits/ 目录下生成 train.txt/val.txt/test.txt
-- 自动生成临时 data.yaml（指向三个 list 文件），传给 ultralytics.YOLO 使用
-- 支持 random、app-ood、object-ood、scene-ood；也可用 --group-col=自定义列 实现任意组互斥
 """
 
 import argparse
-import csv
-import os
-import random
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageDraw
+import pandas as pd
+from sklearn.model_selection import GroupKFold
 from ultralytics import YOLO
 
-try:
-    import pandas as pd
-except Exception as e:
-    print("[ERROR] 需要 pandas：pip install pandas")
-    raise
 
-try:
-    from sklearn.model_selection import GroupKFold, GroupShuffleSplit, KFold
-except Exception as e:
-    print("[ERROR] 需要 scikit-learn：pip install scikit-learn")
-    raise
+# ----------------- 基本工具 -----------------
+
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
-# =========================
-# 设备选择（与原脚本一致风格）
-# =========================
 
 def pick_device(prefer: str = "auto") -> str:
+    import torch
+    import platform
+
     if prefer != "auto":
         return prefer
-    try:
-        import torch
-        import platform
-        if platform.system() == "Darwin" and torch.backends.mps.is_available():
-            return "mps"
-        if torch.cuda.is_available():
-            return "cuda"
-    except Exception:
-        pass
+    if platform.system() == "Darwin" and torch.backends.mps.is_available():
+        return "mps"
+    if torch.cuda.is_available():
+        return "cuda"
     return "cpu"
 
-# =========================
-# 分割与 list/yaml 生成
-# =========================
 
 @dataclass
 class SplitLists:
@@ -1365,32 +2162,280 @@ class SplitLists:
     test: List[str]
 
 
-def _read_csv(data_csv: Path) -> pd.DataFrame:
+# ----------------- 路径解析与 CSV 读取 -----------------
+
+def _find_existing_split_yaml(args) -> Optional[Path]:
+    """
+    对于 KFold（kfold > 1），尝试在 split-outdir 下复用已有的 split 目录。
+    返回其 data.yaml 路径；若不存在则返回 None。
+    """
+    # 只在 kfold>1 时尝试复用；random/单次划分不复用，保持原语义
+    if not args.kfold or args.kfold <= 1:
+        return None
+
+    split_outdir = Path(args.split_outdir)
+    if not split_outdir.exists():
+        return None
+
+    mode = args.split_mode
+    seed = args.seed
+    kfold = args.kfold
+    fold_index = args.fold_index
+
+    prefix = f"{mode}_s{seed}_k{kfold}_f{fold_index}_"
+    candidates = [
+... (truncated)
+```
+
+### `cv/yolo/yolo_train_leave_one_group.py`
+
+```text
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+YOLO Leave-One-Group-Out Training Script
+----------------------------------------
+
+功能摘要：
+- 只保留 train + test，不再有单独 val set。
+- k = group（App 或 Scene）的去重个数。
+- Leave-One-Group-Out：每次选一个 group 做 test，其余全部做 train。
+- 两种运行模式：
+  1) 不给 --kfold-index：只打印 k 和所有 group 的 index + 样本行数，直接退出；
+  2) 给 --kfold-index：构建对应的 train/test/data.yaml，并（可选）启动 YOLO 训练。
+- 支持 --dryrun：生成所有 split 文件和 data.yaml，但不真正启动训练。
+- group 列统一使用 str.strip() 清洗，避免因空格等字符导致计数不一致。
+
+python yolo_train_leave_one_group.py \
+    --data-csv data_stat.csv \
+    --ood-type scene-ood \
+    --kfold-index 2 \
+    --images-root /Users/yangxiaoyi/datasets/myar/images \
+    --labels-root /Users/yangxiaoyi/datasets/myar/labels \
+    --model yolov12n.pt \
+    --dryrun
+
+"""
+
+import argparse
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+from ultralytics import YOLO
+
+
+# -------------------- Utility functions --------------------
+
+
+def pick_device(prefer: str = "auto") -> str:
+    import torch
+    import platform
+
+    if prefer != "auto":
+        return prefer
+    if platform.system() == "Darwin" and torch.backends.mps.is_available():
+        return "mps"
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def set_global_seed(seed: int) -> None:
+    """仅影响训练随机性，不影响数据划分。"""
+    import random
+    import torch
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def _load_csv(data_csv: Path) -> pd.DataFrame:
+    if not data_csv.exists():
+        raise FileNotFoundError(f"CSV not found: {data_csv}")
     df = pd.read_csv(data_csv)
-    # 规范列名
-    cols = {c.lower(): c for c in df.columns}
-    # 兼容常见列名
-    for need in ["filename", "app", "object", "scene"]:
-        if need not in cols and need not in df.columns:
-            # 尝试大小写容错
-            for c in df.columns:
-                if c.lower() == need:
-                    cols[need] = c
-    # 至少需要 filename
-    fn_col = cols.get("filename", "filename")
-    if fn_col not in df.columns:
-        raise ValueError("CSV 必须包含 filename 列")
+    if df.empty:
+        raise RuntimeError(f"CSV is empty: {data_csv}")
     return df
 
 
+def _find_filename_column(df: pd.DataFrame) -> str:
+    """自动推断存放文件名的列（参考 dynsplit 的风格）"""
+    lower_map = {c.lower(): c for c in df.columns}
+    for key in ["filename", "file", "image", "img"]:
+        if key in lower_map:
+            return lower_map[key]
+    print(f"[WARN] 未找到 filename/file/image/img 列，默认使用第一列: {df.columns[0]}")
+    return df.columns[0]
+
+
+def _guess_group_col(df: pd.DataFrame, ood_type: str, group_col_arg: Optional[str]) -> str:
+    """根据 ood_type 自动推断 group 列（App / Scene），或使用显式指定的列名。"""
+    if group_col_arg is not None:
+        if group_col_arg not in df.columns:
+            raise ValueError(
+                f"指定的 group 列 {group_col_arg!r} 不在 CSV 中。\n可用列: {list(df.columns)}"
+            )
+        return group_col_arg
+
+    lower_map = {c.lower(): c for c in df.columns}
+
+    if ood_type == "app-ood":
+        for key in ["app", "app_id", "appname", "package", "package_name"]:
+            if key in lower_map:
+                return lower_map[key]
+        raise ValueError("无法自动找到 App 列，请使用 --group-col 显式指定。")
+
+    if ood_type == "scene-ood":
+        for key in ["scene", "scene_id"]:
+            if key in lower_map:
+                return lower_map[key]
+        raise ValueError("无法自动找到 Scene 列，请使用 --group-col 显式指定。")
+
+    raise ValueError(f"不支持的 ood-type={ood_type}")
+
+
 def _resolve_image_path(images_root: Path, name: str) -> Optional[str]:
-    p = images_root / name
-    if p.suffix == "":
-        # 允许不带后缀的 filename；尝试匹配
-        for ext in IMAGE_EXTS:
-            cand = (images_root / f"{name}{ext}")
-            if cand.exists():
-                return str(cand.resolve())
+    """根据 CSV 中的文件名解析真实图片路径（绝对路径）"""
+    p = Path(name)
+
+    # 绝对路径且存在
+    if p.is_absolute() and p.exists():
+        return str(p.resolve())
+
+    # 相对于 images_root
+... (truncated)
+```
+
+### `experiments/notebooks/framework_status.md`
+
+```text
+📁 AR Action Discovery Framework – Current Progress Summary
+
+（可直接用于新对话的上下文）
+
+1. 项目目标简述
+
+本项目的最终目标是构建一个 自动化 AR Interaction Event Generation + Action Discovery 系统，完成：
+
+AR 对象检测（YOLO）
+
+手势采样（tap / drag / rotate / pinch）
+
+多指手势注入（Appium dispatchGesture）
+
+操作前后场景分析（FoELS + optical flow + geometry + SSIM）
+
+N/M 策略统计操作支持情况
+
+输出 Action Support Matrix（JSONL）
+
+当前工程已完成基础骨架，但正式版本代码在 src/ 下尚未补齐。
+已有代码大部分还在 common/、cv/、experiments/ 中。
+
+2. 📦 当前项目目录结构（已改造成正式工程）
+
+已包含：
+
+src/：正式版模块的目标目录（仍是空骨架，需要逐个补齐代码）
+
+common/、cv/、experiments/：旧版/实验代码（用于迁移参考）
+
+configs/ad.yaml：Action Discovery 的配置文件
+
+scripts/run_discovery.sh：运行入口脚本
+
+3. 📌 模块状态与待办事项
+3.1 Detector（YOLO Detector）
+已有
+
+YOLO 训练、推理代码在 cv/strategy_yolo.py
+
+YOLO 模型、数据集等资源完整
+
+待完成（src/detector/yolo_detector.py）
+
+创建 YOLODetector 类
+
+初始化模型（from ultralytics import YOLO）
+
+detect(frame_bgr) → 返回统一格式：
+
+{
+  "objects": [
+    {"id": 0, "cls": "AR_Object", "bbox": [x, y, w, h], "center_xy": [cx, cy], "score": 0.92}
+  ]
+}
+
+3.2 Executor（Appium 多指手势执行器）
+已有
+
+完整的手势执行逻辑在 experiments/v3_ar_monkey_appium.py
+
+输入事件相关工具：common/device.py、common/actions.py
+
+待完成（src/executor/appium_executor.py）
+
+封装 Appium driver 建立逻辑
+
+snapshot_screen() → BGR numpy array
+
+perform(op, region, params) → 调用多指手势注入执行一次操作
+
+所有截图/执行都由该类统一管理
+
+3.3 Sampler（采样模块）
+已有
+
+随机策略在 common/policy_random.py
+
+待完成（src/sampler/default_sampler.py）
+
+增加 sample(op, region) 方法
+
+drag：方向/距离
+
+rotate：角度/半径
+
+pinch：scale_sign（in/out）
+
+tap：抖动半径
+
+3.4 Verifier（多证据验证器）
+已有
+
+src/verifier/backends/motion_similarity.py：几何+光流验证的完整后端
+
+common/verify_motion.py：旧版（参考）
+
+待完成（src/verifier/verifier.py）
+
+将 YOLO bbox/center 与前后帧交给 motion_similarity
+
+构造 extra 参数（像素阈值等）
+
+返回 success, evidence, metrics
+
+未来可加入 FoELS / SSIM / optical flow 多通道融合
+
+3.5 Policy（N/M 判定）
+已有
+
+src/policy/policy.py 已有基本骨架
+
+待完成
+
+确保 decide_support(op, trial_results) 正常返回布尔值即可（简单部分）
+
+3.6 Discovery（总控流程）
+已有
+
 ... (truncated)
 ```
 
@@ -1718,6 +2763,67 @@ if __name__ == "__main__":
         fix_labels_to_zero(folder)
     else:
         print("❌ 路径不存在，请检查输入。")
+```
+
+### `experiments/v0_v1_v2_v3_archive/smoke.py`
+
+```text
+#!/usr/bin/env python3
+import argparse, subprocess, time, re, sys
+
+PKG = "com.google.ar.core.examples.java.hellorecordingplayback"
+ACT = ".HelloRecordingPlaybackActivity"  # 也可用完整名：com.google.ar.core.examples.java.hellorecordingplayback.HelloRecordingPlaybackActivity
+
+def run(cmd):
+    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode("utf-8","ignore")
+
+def start_app(serial=None):
+    base = f"adb -s {serial} " if serial else "adb "
+    # 启动：包名/Activity 支持以点开头的简写
+    run(base + f"shell am start -n {PKG}/{ACT}")
+
+def top_component(serial=None):
+    base = f"adb -s {serial} " if serial else "adb "
+    # 优先从 activity dumpsys 抓 topResumedActivity，抓不到再看 window 的 mCurrentFocus
+    out = run(base + "shell dumpsys activity")
+    m = re.search(r'topResumedActivity.*? ([\w\.]+)/([\w\.$]+)', out)
+    if not m:
+        m = re.search(r'mResumedActivity.*? ([\w\.]+)/([\w\.$]+)', out)
+    if m:
+        return m.group(1), m.group(2)
+    out = run(base + "shell dumpsys window")
+    m = re.search(r'mCurrentFocus.*? ([\w\.]+)/([\w\.$]+)', out)
+    if m:
+        return m.group(1), m.group(2)
+    return None, None
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--serial", help="设备序列号（adb devices 可查看，多设备时必须指定）")
+    args = ap.parse_args()
+
+    # 启动 App
+    start_app(args.serial)
+    time.sleep(3.0)  # 等摄像头/AR会话初始化
+
+    # 校验前台是否在目标包
+    tpkg, tact = top_component(args.serial)
+    if tpkg is None:
+        print("✖ 读取前台 Activity 失败（权限或系统限制）。")
+        sys.exit(2)
+
+    print(f"前台：{tpkg}/{tact}")
+    if tpkg == PKG:
+        print("✓ SMOKE OK：App 已启动并处于前台。")
+        sys.exit(0)
+    else:
+        print("✖ SMOKE FAIL：前台不在目标包。")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+
+  
 ```
 
 ### `experiments/v0_v1_v2_v3_archive/v0_ar_monkey_adb.py`
@@ -2602,6 +3708,132 @@ def long_press(driver, x, y, hold_ms=900):
 ... (truncated)
 ```
 
+### `project_status_summary.md`
+
+```text
+
+---
+
+# 🚀 **Action Discovery Framework – 全局工程进度总结（截至当前对话）**
+
+本文件总结了当前 AR 自动化测试框架（Action Discovery Framework）的全部代码结构、完成状态与待办事项，用于新的 ChatGPT 对话作为上下文输入。
+
+---
+
+# 1. 🎯 项目目标概述
+
+本工程旨在构建一个 **用于 AR 应用的自动化 Action Discovery 工具**，通过视觉检测、操作采样、手势执行、变化验证与策略判定，最终输出：
+
+* **Action Support Matrix（支持矩阵）**
+* 可用于后续 LLM 驱动智能脚本生成的基础能力图谱
+
+系统核心流程如下：
+
+1. **YOLODetector**：检测 AR 物体位置（bbox / center）
+2. **DefaultSampler**：根据物体与操作生成执行参数
+3. **AppiumExecutor**：对 Android 设备注入手势
+4. **Verifier**：通过视觉证据（motion similarity 等）判断操作是否成功
+5. **NMPolicy**：N/M 判定，决定该目标是否“支持”某个动作
+6. **run_discovery**：主循环，将上述模块整合为完整 Action Discovery 流程
+
+---
+
+# 2. 📁 代码目录结构（当前有效结构）
+
+```
+program/
+├── src/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── common/
+│   │   ├── __init__.py
+│   │   ├── actions.py
+│   │   ├── device.py
+│   │   ├── locator_iface.py
+│   │   ├── policy_random.py
+│   │   ├── timing.py
+│   │   └── verify_motion.py
+│   │
+│   ├── detector/
+│   │   ├── __init__.py
+│   │   └── yolo_detector.py
+│   │
+│   ├── sampler/
+│   │   ├── __init__.py
+│   │   └── default_sampler.py
+│   │
+│   ├── executor/
+│   │   ├── __init__.py
+│   │   └── appium_executor.py
+│   │
+│   ├── verifier/
+│   │   ├── __init__.py
+│   │   ├── backends/
+│   │   │   └── motion_similarity.py
+│   │   └── verifier.py
+│   │
+│   ├── policy/
+│   │   ├── __init__.py
+│   │   └── policy.py
+│   │
+│   └── discovery/
+│       ├── __init__.py
+│       └── run_discovery.py
+│
+├── configs/
+│   └── ad.yaml
+│
+├── scripts/
+│   └── run_discovery.sh
+│
+├── experiments/
+│   └── v0_v1_v2_v3_archive/
+│       └── v2_ar_monkey_appium.py  (参考用)
+│
+├── README.md
+└── requirements.txt
+```
+
+---
+
+# 3. 🧩 各模块完成度与当前状态
+
+## ✔️ **3.1 Detector (YOLODetector)**
+
+* 已完成：`yolo_detector.py`
+* 功能：加载 YOLO 模型、输出 bbox + center + score
+* 输出格式标准化完毕
+
+## ✔️ **3.2 Sampler (DefaultSampler)**
+
+* 已完成：`default_sampler.py`
+* 支持动作：
+
+  * tap/single_tap
+  * drag/drag_short/drag_long
+  * rotate/rotate_cw/rotate_ccw
+  * pinch/pinch_in/pinch_out/zoom_in/zoom_out
+* 所有参数都规范化并可通过 cfg 调整
+
+## ✔️ **3.3 Executor (AppiumExecutor)**
+
+* 已完成：`appium_executor.py`
+* 与 `common/actions.py` 与 `common/device.py` 完全对齐
+* 支持动作家族：tap / drag / rotate / pinch（自动处理别名）
+
+## ✔️ **3.4 Verifier**
+
+* 已完成：
+
+  * `verifier/backends/motion_similarity.py`（已有）
+  * `verifier.py`（新写）
+* 功能：将操作映射到 motion-based 几何验证
+* 支持：
+
+  * drag：方向/幅度
+... (truncated)
+```
+
 ### `README.md`
 
 ```text
@@ -2660,65 +3892,10 @@ wheel==0.45.1
 wsproto==1.2.0
 ```
 
-### `smoke.py`
+### `src/__init__.py`
 
 ```text
-#!/usr/bin/env python3
-import argparse, subprocess, time, re, sys
-
-PKG = "com.google.ar.core.examples.java.hellorecordingplayback"
-ACT = ".HelloRecordingPlaybackActivity"  # 也可用完整名：com.google.ar.core.examples.java.hellorecordingplayback.HelloRecordingPlaybackActivity
-
-def run(cmd):
-    return subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode("utf-8","ignore")
-
-def start_app(serial=None):
-    base = f"adb -s {serial} " if serial else "adb "
-    # 启动：包名/Activity 支持以点开头的简写
-    run(base + f"shell am start -n {PKG}/{ACT}")
-
-def top_component(serial=None):
-    base = f"adb -s {serial} " if serial else "adb "
-    # 优先从 activity dumpsys 抓 topResumedActivity，抓不到再看 window 的 mCurrentFocus
-    out = run(base + "shell dumpsys activity")
-    m = re.search(r'topResumedActivity.*? ([\w\.]+)/([\w\.$]+)', out)
-    if not m:
-        m = re.search(r'mResumedActivity.*? ([\w\.]+)/([\w\.$]+)', out)
-    if m:
-        return m.group(1), m.group(2)
-    out = run(base + "shell dumpsys window")
-    m = re.search(r'mCurrentFocus.*? ([\w\.]+)/([\w\.$]+)', out)
-    if m:
-        return m.group(1), m.group(2)
-    return None, None
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--serial", help="设备序列号（adb devices 可查看，多设备时必须指定）")
-    args = ap.parse_args()
-
-    # 启动 App
-    start_app(args.serial)
-    time.sleep(3.0)  # 等摄像头/AR会话初始化
-
-    # 校验前台是否在目标包
-    tpkg, tact = top_component(args.serial)
-    if tpkg is None:
-        print("✖ 读取前台 Activity 失败（权限或系统限制）。")
-        sys.exit(2)
-
-    print(f"前台：{tpkg}/{tact}")
-    if tpkg == PKG:
-        print("✓ SMOKE OK：App 已启动并处于前台。")
-        sys.exit(0)
-    else:
-        print("✖ SMOKE FAIL：前台不在目标包。")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    main()
-
-  
+# src/__init__.py
 ```
 
 ### `src/__main__.py`
@@ -2744,10 +3921,9 @@ from src.discovery.run_discovery import run_once
 from src.verifier.verifier import Verifier
 from src.policy.policy import NMPolicy
 
-# 如已实现，请取消注释并替换为你的具体类
-# from src.detector.yolo import YOLODetector
-# from src.executor.appium_exec import AppiumExecutor
-# from src.sampler.default import DefaultSampler
+from src.detector import YOLODetector
+from src.executor import AppiumExecutor
+from src.sampler import DefaultSampler
 
 
 def load_cfg(path: str) -> Dict[str, Any]:
@@ -2804,29 +3980,13 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def make_components(cfg: Dict[str, Any], device_id_override: str | None = None):
-    """
-    这里实例化 detector / sampler / executor。
-    按你的工程把占位替换成真实实现。
-    """
-    # 示例：如果你的配置里有权重、置信度等，按需传入构造
-    # detector = YOLODetector(
-    #     weights=cfg["yolo"].get("weights", "yolov8n.pt"),
-    #     imgsz=cfg["yolo"]["imgsz"],
-    #     conf=cfg["yolo"]["conf"],
-    #     max_det=cfg["yolo"]["max_det"],
-    # )
+def make_components(cfg: dict, device_id_override: str | None = None):
+    detector = YOLODetector.from_cfg(cfg)
+    sampler = DefaultSampler.from_cfg(cfg)
+    dev_id = device_id_override or cfg.get("device", None)
+    executor = AppiumExecutor(cfg=cfg, device_id=dev_id)
 
-    # sampler = DefaultSampler(seed=cfg.get("seed", 42))
-
-    # dev_id = device_id_override or cfg.get("device", "emulator-5554")
-    # executor = AppiumExecutor(device_id=dev_id)
-
-    detector = None   # ← 用你的实现替换
-    sampler = None    # ← 用你的实现替换
-    executor = None   # ← 用你的实现替换
-    driver = None     # ← 若需要 Appium driver，可由 executor 暴露/返回
-
+    driver = executor.driver
     return driver, detector, sampler, executor
 
 
@@ -2844,12 +4004,41 @@ def main(argv: List[str]) -> int:
         cfg["device"] = args.device_id
 
     cfg["seed"] = args.seed
+    set_seed(args.seed)
+
+    # 仅在需要时将 ops 覆盖到 cfg（给 sampler/executor 可见）
+    ops = [s.strip() for s in args.ops.split(",") if s.strip()]
+    cfg["ops"] = ops
+
+    # 打印一次关键配置（便于追踪）
+    print(json.dumps(
+        {
+            "out_dir": cfg["runtime"]["out_dir"],
+            "out_jsonl": cfg["runtime"]["out_jsonl"],
+            "support_jsonl": cfg["runtime"]["support_jsonl"],
+            "ops": ops,
+            "seed": cfg["seed"],
+        },
+        indent=2,
+        ensure_ascii=False,
 ... (truncated)
 ```
 
 ### `src/common/__init__.py`
 
 ```text
+# src/common/__init__.py
+
+from . import actions, device, locator_iface, policy_random, timing, verify_motion
+
+__all__ = [
+    "actions",
+    "device",
+    "locator_iface",
+    "policy_random",
+    "timing",
+    "verify_motion",
+]
 ```
 
 ### `src/common/actions.py`
@@ -3440,11 +4629,136 @@ class MotionStats:
 ### `src/detector/__init__.py`
 
 ```text
+# src/detector/__init__.py
+from .yolo_detector import YOLODetector
+
+__all__ = ["YOLODetector"]
 ```
 
 ### `src/detector/yolo_detector.py`
 
 ```text
+# src/detector/yolo_detector.py
+# -*- coding: utf-8 -*-
+"""
+YOLO-based detector for AR objects and UI elements.
+
+This module wraps an Ultralytics YOLO model and exposes a simple
+`detect(frame_bgr)` interface that returns a list of detected objects
+in a unified format, e.g.:
+
+{
+    "objects": [
+        {
+            "id": 0,
+            "cls": "AR_Object",
+            "cls_id": 0,
+            "score": 0.92,
+            "bbox": [x, y, w, h],       # absolute pixels
+            "center_xy": [cx, cy]       # absolute pixels
+        },
+        ...
+    ],
+    "meta": {
+        "img_shape": [H, W, C],
+        "num_dets": N
+    }
+}
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+from ultralytics import YOLO
+
+
+class YOLODetector:
+    """
+    Wrapper around Ultralytics YOLO for AR object / UI element detection.
+    """
+
+    def __init__(
+        self,
+        weights: str,
+        imgsz: int = 640,
+        conf: float = 0.25,
+        max_det: int = 100,
+        device: Optional[str] = None,
+        classes: Optional[List[int]] = None,
+        class_map: Optional[Dict[int, str]] = None,
+    ) -> None:
+        """
+        Args:
+            weights: Path to YOLO weights file (e.g. .pt).
+            imgsz: Inference image size (short side).
+            conf: Confidence threshold.
+            max_det: Maximum number of detections.
+            device: Device string for Ultralytics (e.g. 'cpu', '0', '0,1').
+            classes: Optional list of class indices to keep.
+            class_map: Optional mapping from class id to name, e.g. {0: 'AR_Object', 1: 'UI_Element'}.
+        """
+        self.weights = str(weights)
+        self.imgsz = int(imgsz)
+        self.conf = float(conf)
+        self.max_det = int(max_det)
+        self.device = device
+        self.classes = classes
+
+        # 默认类别映射：你可以在 cfg 中覆盖
+        if class_map is None:
+            # 假设大多数情况下是二类：AR_Object / UI_Element
+            class_map = {
+                0: "AR_Object",
+                1: "UI_Element",
+            }
+        self.class_map = class_map
+
+        # 加载 YOLO 模型
+        self.model = YOLO(self.weights)
+
+    # --------------------------------------------------------------------- #
+    # 工厂方法：从 config 字典构造（方便在 __main__.py 中使用）
+    # --------------------------------------------------------------------- #
+    @classmethod
+    def from_cfg(cls, cfg: Dict[str, Any]) -> "YOLODetector":
+        """
+        Build YOLODetector from a config dict like cfg['yolo'].
+
+        Expected cfg structure (example):
+
+        yolo:
+          weights: "cv/yolo/runs/detect/train/weights/best.pt"
+          imgsz: 640
+          conf: 0.05
+          max_det: 100
+          device: "0"
+          classes: [0, 1]
+          class_map:
+            0: "AR_Object"
+            1: "UI_Element"
+        """
+        yolo_cfg = cfg.get("yolo", {})
+
+        weights = yolo_cfg.get("weights", "best.pt")
+        imgsz = int(yolo_cfg.get("imgsz", 640))
+        conf = float(yolo_cfg.get("conf", 0.25))
+        max_det = int(yolo_cfg.get("max_det", 100))
+        device = yolo_cfg.get("device", None)
+
+        classes = yolo_cfg.get("classes", None)
+        if classes is not None:
+            classes = [int(c) for c in classes]
+
+        class_map_cfg = yolo_cfg.get("class_map", None)
+        if class_map_cfg is not None:
+            # YAML 读出来可能是 {0: 'AR_Object'} 或 {'0': 'AR_Object'}
+            class_map = {int(k): str(v) for k, v in class_map_cfg.items()}
+        else:
+            class_map = None
+... (truncated)
 ```
 
 ### `src/discovery/__init__.py`
@@ -3455,92 +4769,462 @@ class MotionStats:
 ### `src/discovery/run_discovery.py`
 
 ```text
-# discovery/run_discovery.py
-import json, time, pathlib
-from policy.policy import NMPolicy
-from verifier.verifier import Verifier
+# src/discovery/run_discovery.py
+# -*- coding: utf-8 -*-
+"""
+Action Discovery main loop.
 
-def run_discovery_once(drv, detector, sampler, executor, verifier: Verifier, policy: NMPolicy, cfg):
-    # 1) 检测
-    det = detector.detect()
-    targets = select_targets(det)  # 选择若干 AR 物体与若干非AR区域
+Detector  -> YOLODetector       (src/detector/yolo_detector.py)
+Sampler   -> DefaultSampler     (src/sampler/default_sampler.py)
+Executor  -> AppiumExecutor     (src/executor/appium_executor.py)
+Verifier  -> Verifier           (src/verifier/verifier.py)
+Policy    -> NMPolicy           (src/policy/policy.py)
 
-    results = []
-    for region in targets:
-        for op_type in ['tap','drag','rotate']:
-            trial_success = []
-            for i in range(policy.N):
-                params = policy.sample_params(op_type)
-                before = snapshot_screen(drv)
-                # 2) 执行
-                executor.perform(op_type, region, params)
-                time.sleep(cfg['post_wait_s'])
-                after  = snapshot_screen(drv)
+入口函数:
+    run_once(drv, detector, sampler, executor, cfg) -> bool
+"""
 
-                # 3) 重新检测（或用跟踪）得到 det_after
-                det_after = detector.detect()
+from __future__ import annotations
 
-                # 4) 验证
-                succ, evidence, metrics = verifier.verify(
-                    op_type, before, after, det, det_after, region['target_id'], extra={}
-                )
-                trial_success.append(succ)
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List
 
-                # 5) 落盘一次 trial
-                rec = pack_jsonl_record(op_type, region, params, succ, metrics, evidence, cfg)
-                append_jsonl(cfg['out_jsonl'], rec)
+import numpy as np
 
-            # 6) N/M 判定 → 写入“支持矩阵”条目
-            support = policy.decide_support(op_type, trial_success)
-            save_support(cfg['support_jsonl'], region, op_type, support, trial_success)
+from src.policy import NMPolicy
+from src.verifier import Verifier
 
-    return True
+
+@dataclass
+class DiscoveryConfig:
+    ops: List[str]
+    N: int
+    M: int
+    post_wait_s: float
+    max_targets: int
+    out_jsonl: Path
+    support_jsonl: Path
+
+
+def _build_cfg(cfg: Dict[str, Any]) -> DiscoveryConfig:
+    runtime = cfg.get("runtime", {})
+    policy_cfg = cfg.get("policy", {})
+
+    ops = cfg.get("ops") or runtime.get("ops") or ["drag", "rotate", "tap"]
+    if isinstance(ops, str):
+        ops = [s.strip() for s in ops.split(",") if s.strip()]
+
+    N = int(policy_cfg.get("N", 10))
+    M = int(policy_cfg.get("M", 2))
+    post_wait_s = float(runtime.get("post_wait_s", 0.4))
+    max_targets = int(runtime.get("max_targets", 3))
+
+    out_jsonl = Path(runtime.get("out_jsonl", "runs/exp/trials.jsonl"))
+    support_jsonl = Path(runtime.get("support_jsonl", "runs/exp/support.jsonl"))
+    out_jsonl.parent.mkdir(parents=True, exist_ok=True)
+
+    return DiscoveryConfig(
+        ops=ops,
+        N=N,
+        M=M,
+        post_wait_s=post_wait_s,
+        max_targets=max_targets,
+        out_jsonl=out_jsonl,
+        support_jsonl=support_jsonl,
+    )
+
+
+# --------------------------------------------------------------------- #
+# Target selection
+# --------------------------------------------------------------------- #
+def _select_targets(det_result: Dict[str, Any], dc: DiscoveryConfig) -> List[Dict[str, Any]]:
+    """
+    从 detector 输出中选出若干 target。
+
+    det_result 期望格式:
+        {
+          "objects": [
+             {"id": 0, "cls": "AR_Object", "bbox": [...], "center_xy": [...], "score": ...},
+             ...
+          ],
+          "meta": {...}
+        }
+    """
+    objs = det_result.get("objects", []) or []
+    if not objs:
+        return []
+
+    ar_objs = [o for o in objs if str(o.get("cls", "")).lower() == "ar_object"]
+    if not ar_objs:
+        ar_objs = objs  # 兜底: 没有标明 AR_Object 时直接用所有对象
+
+    targets: List[Dict[str, Any]] = []
+    for i, obj in enumerate(ar_objs[: dc.max_targets]):
+        bbox = obj.get("bbox", [0.0, 0.0, 0.0, 0.0])
+        cx, cy = obj.get("center_xy", [bbox[0] + bbox[2] / 2.0, bbox[1] + bbox[3] / 2.0])
+
+        targets.append(
+            {
+                "target_id": i,
+                "det_id": obj.get("id", i),
+                "cls": obj.get("cls", ""),
+                "score": float(obj.get("score", 0.0)),
+                "bbox": [float(b) for b in bbox],
+                "center_xy": [float(cx), float(cy)],
+            }
+        )
+    return targets
+
+
+# --------------------------------------------------------------------- #
+# Main entry
+# --------------------------------------------------------------------- #
+def run_once(
+    drv: Any,
+    detector: Any,
+    sampler: Any,
+    executor: Any,
+    cfg: Dict[str, Any],
+) -> bool:
+... (truncated)
 ```
 
 ### `src/executor/__init__.py`
 
 ```text
+# src/executor/__init__.py
+from .appium_executor import AppiumExecutor
+
+__all__ = ["AppiumExecutor"]
+```
+
+### `src/executor/appium_executor.py`
+
+```text
+# src/executor/appium_executor.py
+# -*- coding: utf-8 -*-
+"""
+Appium-based executor for AR interaction events.
+
+This module wraps your existing Appium + gesture utilities
+in `common/device.py` and `common/actions.py` and exposes:
+
+- snapshot_screen() -> np.ndarray (BGR image)
+- perform(op, region, params) -> None
+
+`region` is expected to be a dict like:
+{
+    "target_id": int,
+    "bbox": [x, y, w, h],         # usually in window coords
+    "center_xy": [cx, cy],
+    "region_type": "on_object" | "off_object",
+    ...
+}
+
+`params` is an op-specific parameter dict generated by the sampler.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+
+import numpy as np
+
+from ..common import actions, device
+
+
+@dataclass
+class ExecutorConfig:
+    """Lightweight config holder for the executor."""
+    device_serial: Optional[str]
+    app_package: str
+    app_activity: Optional[str]
+    warmup_wait: float = 3.0
+
+    default_tap_ms: int = 80
+    default_drag_ms: int = 300
+    default_rotate_ms: int = 400
+    default_pinch_ms: int = 400
+
+
+class AppiumExecutor:
+    """
+    High-level executor that wraps an Appium driver and your gesture
+    primitives (tap/drag/pinch/rotate).
+
+    Design:
+      - Executor only understands a few primitive action *families*:
+        'tap', 'drag', 'rotate', 'pinch'.
+      - High-level ops like 'drag_short', 'rotate_cw', 'pinch_small'
+        should be reduced to these families via ACTION_FAMILY mapping.
+      - All semantic differences (short/long/clockwise/...) should be
+        handled in the sampler by generating different `params`.
+    """
+
+    # 映射高层 op 名称 -> 原子 family
+    # 需要新增高层动作时，只改这里即可（以及 sampler 中的参数生成逻辑）
+    ACTION_FAMILY: Dict[str, str] = {
+        "tap": "tap",
+        "single_tap": "tap",
+
+        "drag": "drag",
+        "drag_short": "drag",
+        "drag_long": "drag",
+
+        "rotate": "rotate",
+        "rotate_cw": "rotate",
+        "rotate_ccw": "rotate",
+
+        "pinch": "pinch",
+        "pinch_in": "pinch",
+        "pinch_out": "pinch",
+        "zoom_in": "pinch",
+        "zoom_out": "pinch",
+    }
+
+    def __init__(
+        self,
+        cfg: Dict[str, Any],
+        device_id: Optional[str] = None,
+        driver: Optional[Any] = None,
+    ) -> None:
+        """
+        Args:
+            cfg: Global config dict (parsed from YAML).
+            device_id: Optional override for device serial/udid.
+            driver: Optional existing Appium driver.
+        """
+        # 设备串号优先级：显式传入 > cfg["device_serial"] > cfg["device"]
+        serial = device_id or cfg.get("device_serial") or cfg.get("device")
+
+        app_cfg = cfg.get("app", {})
+        pkg = app_cfg.get("package")
+        activity = app_cfg.get("activity", "auto")
+
+        if not pkg:
+            raise ValueError(
+                "AppiumExecutor: cfg['app']['package'] is required to launch the app."
+            )
+
+        self.config = ExecutorConfig(
+            device_serial=serial,
+            app_package=pkg,
+            app_activity=activity,
+            warmup_wait=float(cfg.get("runtime", {}).get("warmup_wait", 3.0)),
+            default_tap_ms=int(cfg.get("runtime", {}).get("default_tap_ms", 80)),
+            default_drag_ms=int(cfg.get("runtime", {}).get("default_drag_ms", 300)),
+            default_rotate_ms=int(cfg.get("runtime", {}).get("default_rotate_ms", 400)),
+            default_pinch_ms=int(cfg.get("runtime", {}).get("default_pinch_ms", 400)),
+        )
+
+        if driver is not None:
+            self.driver = driver
+        else:
+... (truncated)
 ```
 
 ### `src/policy/__init__.py`
 
 ```text
+# src/policy/__init__.py
+from .policy import NMPolicy
+
+__all__ = ["NMPolicy"]
 ```
 
 ### `src/policy/policy.py`
 
 ```text
-# policy/policy.py
+# src/policy/policy.py
+# -*- coding: utf-8 -*-
+"""
+N/M policy for deciding whether an op is "supported" on a target.
+
+Usage:
+    policy = NMPolicy.from_cfg(cfg)
+    support = policy.decide_support(results)  # results: list[bool]
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 from typing import Dict, Any, List
 
+
+@dataclass
 class NMPolicy:
-    def __init__(self, N: int = 10, M: int = 2, rng=None):
-        self.N = N
-        self.M = M
-        self.rng = rng
+    N: int = 10
+    M: int = 2
 
-    def decide_support(self, op_type: str, trial_results: List[bool]) -> bool:
-        return sum(trial_results) >= self.M
+    @classmethod
+    def from_cfg(cls, cfg: Dict[str, Any]) -> "NMPolicy":
+        pc = cfg.get("policy", {})
+        return cls(
+            N=int(pc.get("N", 10)),
+            M=int(pc.get("M", 2)),
+        )
 
-    def sample_params(self, op_type: str) -> Dict[str, Any]:
+    def decide_support(self, results: List[bool]) -> bool:
         """
-        统一随机化操作参数的入口：
-          tap:   press_ms, jitter半径
-          drag:  方向(任意角)、长度、速度、多指偏移
-          rotate:角度(正/负)、半径、双指间距/速度
+        Args:
+            results: list of booleans for one (target, op) pair.
+
+        Returns:
+            True if the op is considered supported (>= M successes),
+            False otherwise.
         """
-        # TODO: 使用 self.rng 生成可重复的随机
-        return {}
+        if not results:
+            return False
+        ok_count = sum(1 for r in results if r)
+        return ok_count >= self.M
 ```
 
 ### `src/sampler/__init__.py`
 
 ```text
+# src/sampler/__init__.py
+from .default_sampler import DefaultSampler
+
+__all__ = ["DefaultSampler"]
+```
+
+### `src/sampler/default_sampler.py`
+
+```text
+# src/sampler/default_sampler.py
+# -*- coding: utf-8 -*-
+"""
+Default sampler for AR interaction events.
+
+This module is responsible for generating operation-specific parameter
+dicts for actions such as:
+
+- tap, single_tap
+- drag, drag_short, drag_long
+- rotate, rotate_cw, rotate_ccw
+- pinch, pinch_in, pinch_out, zoom_in, zoom_out
+
+The Executor will interpret these parameters and call low-level gesture
+primitives (tap/drag_line/rotate/pinch_or_zoom).
+"""
+
+from __future__ import annotations
+
+import math
+import random
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+
+
+@dataclass
+class SamplerConfig:
+    """Config for DefaultSampler with reasonable defaults."""
+    seed: int = 42
+
+    # tap
+    tap_jitter_frac: float = 0.05      # center 抖动范围 ~ min(w,h)*tap_jitter_frac
+    tap_duration_ms_min: int = 50
+    tap_duration_ms_max: int = 120
+
+    # drag
+    drag_len_frac_min: float = 0.2     # 相对于目标 bbox 对角线的比例
+    drag_len_frac_max: float = 0.6
+    drag_duration_ms_min: int = 200
+    drag_duration_ms_max: int = 400
+
+    # rotate
+    rotate_angle_min_deg: float = 20.0
+    rotate_angle_max_deg: float = 90.0
+    rotate_radius_frac: float = 0.6    # radius ~ min(w,h)*radius_frac
+    rotate_steps_min: int = 6
+    rotate_steps_max: int = 10
+    rotate_duration_ms_min: int = 300
+    rotate_duration_ms_max: int = 500
+
+    # pinch / zoom
+    pinch_radius_frac: float = 0.8     # 初始两指间距的一半 ~ min(w,h)*pinch_radius_frac
+    pinch_base_scale_min: float = 0.15
+    pinch_base_scale_max: float = 0.35
+    pinch_duration_ms_min: int = 280
+    pinch_duration_ms_max: int = 480
+
+
+class DefaultSampler:
+    """
+    Default sampler that generates low-level parameters for different ops.
+
+    Usage:
+        sampler = DefaultSampler.from_cfg(cfg)
+        params = sampler.sample("drag", region)
+    """
+
+    def __init__(self, config: SamplerConfig) -> None:
+        self.config = config
+        self.rng = random.Random(config.seed)
+
+    # ------------------------------------------------------------------ #
+    # 工厂方法：从全局 cfg 中构造
+    # ------------------------------------------------------------------ #
+    @classmethod
+    def from_cfg(cls, cfg: Dict[str, Any]) -> "DefaultSampler":
+        sampler_cfg = cfg.get("sampler", {})
+        seed = int(cfg.get("seed", sampler_cfg.get("seed", 42)))
+
+        sc = SamplerConfig(
+            seed=seed,
+            tap_jitter_frac=float(sampler_cfg.get("tap_jitter_frac", 0.05)),
+            tap_duration_ms_min=int(sampler_cfg.get("tap_duration_ms_min", 50)),
+            tap_duration_ms_max=int(sampler_cfg.get("tap_duration_ms_max", 120)),
+            drag_len_frac_min=float(sampler_cfg.get("drag_len_frac_min", 0.2)),
+            drag_len_frac_max=float(sampler_cfg.get("drag_len_frac_max", 0.6)),
+            drag_duration_ms_min=int(sampler_cfg.get("drag_duration_ms_min", 200)),
+            drag_duration_ms_max=int(sampler_cfg.get("drag_duration_ms_max", 400)),
+            rotate_angle_min_deg=float(sampler_cfg.get("rotate_angle_min_deg", 20.0)),
+            rotate_angle_max_deg=float(sampler_cfg.get("rotate_angle_max_deg", 90.0)),
+            rotate_radius_frac=float(sampler_cfg.get("rotate_radius_frac", 0.6)),
+            rotate_steps_min=int(sampler_cfg.get("rotate_steps_min", 6)),
+            rotate_steps_max=int(sampler_cfg.get("rotate_steps_max", 10)),
+            rotate_duration_ms_min=int(sampler_cfg.get("rotate_duration_ms_min", 300)),
+            rotate_duration_ms_max=int(sampler_cfg.get("rotate_duration_ms_max", 500)),
+            pinch_radius_frac=float(sampler_cfg.get("pinch_radius_frac", 0.8)),
+            pinch_base_scale_min=float(sampler_cfg.get("pinch_base_scale_min", 0.15)),
+            pinch_base_scale_max=float(sampler_cfg.get("pinch_base_scale_max", 0.35)),
+            pinch_duration_ms_min=int(sampler_cfg.get("pinch_duration_ms_min", 280)),
+            pinch_duration_ms_max=int(sampler_cfg.get("pinch_duration_ms_max", 480)),
+        )
+        return cls(sc)
+
+    # ------------------------------------------------------------------ #
+    # 公共接口：为给定 op & region 采样参数
+    # ------------------------------------------------------------------ #
+    def sample(self, op: str, region: Dict[str, Any]) -> Dict[str, Any]:
+        op = op.lower()
+        if op in ("tap", "single_tap"):
+            return self._sample_tap(region)
+        elif op.startswith("drag"):
+            # drag, drag_short, drag_long, drag_diagonal, etc.
+            return self._sample_drag(region, op=op)
+        elif op.startswith("rotate"):
+            # rotate, rotate_cw, rotate_ccw, rotate_small, etc.
+            return self._sample_rotate(region, op=op)
+        elif op.startswith("pinch") or op.startswith("zoom"):
+            # pinch, pinch_in, pinch_out, zoom_in, zoom_out
+            return self._sample_pinch(region, op=op)
+        else:
+... (truncated)
 ```
 
 ### `src/verifier/__init__.py`
 
 ```text
+# src/verifier/__init__.py
+from .verifier import Verifier
+
+__all__ = ["Verifier"]
 ```
 
 ### `src/verifier/backends/motion_similarity.py`
@@ -3673,73 +5357,126 @@ def _fit_similarity(p0: np.ndarray, p1: np.ndarray, center: Optional[Tuple[float
 
 ```text
 # src/verifier/verifier.py
-from typing import Dict, Any, Tuple
+# -*- coding: utf-8 -*-
+"""
+High-level Verifier that wraps motion-based backends.
+
+Currently uses:
+    src/verifier/backends/motion_similarity.py
+
+API:
+    Verifier.from_cfg(cfg)
+    Verifier.verify(op, pre_bgr, post_bgr, region, params) -> bool
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, Tuple
+
 import numpy as np
-from .backends import motion_similarity as ms  # 你的 verify_motion.py
+
+from src.verifier.backends import motion_similarity as ms
+
+
+@dataclass
+class VerifierConfig:
+    tau_move: float = 0.03     # normalized (relative to image diagonal)
+    tau_rot_deg: float = 8.0
+    tau_scale: float = 0.10
+    min_frac: float = 0.5      # 最少多少比例的 inlier 才算成功
+
 
 class Verifier:
-    def __init__(self, tau_move=0.03, tau_rot_deg=8.0, tau_ssim_delta=0.08, use_diag_norm=False):
-        self.tau_move = tau_move
-        self.tau_rot_deg = tau_rot_deg
-        self.tau_ssim_delta = tau_ssim_delta
-        self.use_diag_norm = use_diag_norm
+    def __init__(self, config: VerifierConfig) -> None:
+        self.config = config
 
-    def _norm_to_pixels(self, bbox, img_shape):
-        H, W = img_shape[:2]
-        if self.use_diag_norm:
-            w, h = bbox[2], bbox[3]
-            D = (w**2 + h**2) ** 0.5
-            return max(1.0, D)
-        else:
-            return float(min(W, H))
+    # ------------------------------------------------------------------ #
+    # Factory from cfg
+    # ------------------------------------------------------------------ #
+    @classmethod
+    def from_cfg(cls, cfg: Dict[str, Any]) -> "Verifier":
+        thr = cfg.get("thresholds", {})
+        vc = VerifierConfig(
+            tau_move=float(thr.get("tau_move", 0.03)),
+            tau_rot_deg=float(thr.get("tau_rot_deg", thr.get("tau_rot_deg", 8.0))),
+            tau_scale=float(thr.get("tau_scale", 0.10)),
+            min_frac=float(thr.get("min_frac", 0.5)),
+        )
+        return cls(vc)
 
-    def verify(self, op_type: str,
-               before_img: np.ndarray, after_img: np.ndarray,
-               det_before: Dict[str,Any], det_after: Dict[str,Any],
-               target_id: int, extra: Dict[str,Any]) -> Tuple[bool, Dict[str, Any], Dict[str, float]]:
-        # 取目标框与中心（你已有 detector 的输出，这里略）
-        bbox = extra["bbox"]          # (x,y,w,h)
-        center = extra["center_xy"]   # (cx,cy)
-        img_scale = self._norm_to_pixels(bbox, before_img.shape)
+    # ------------------------------------------------------------------ #
+    # Public API
+    # ------------------------------------------------------------------ #
+    def verify(
+        self,
+        op: str,
+        pre_bgr: np.ndarray,
+        post_bgr: np.ndarray,
+        region: Dict[str, Any],
+        params: Dict[str, Any],
+    ) -> bool:
+        """
+        Args:
+            op: high-level op name ('drag', 'drag_short', 'rotate', 'rotate_cw',
+                'pinch_in', 'pinch_out', 'zoom_in', 'zoom_out', etc.)
+            pre_bgr/post_bgr: HxWx3 uint8 images (BGR)
+            region: dict with at least 'bbox' and 'center_xy'
+            params: sampler-generated parameter dict
 
-        # —— 几何证据（用你的后端） ——
-        ms_extra = {}
-        if op_type == "drag":
-            ms_extra.update({
-                "start_xy": extra["start_xy"],
-                "end_xy":   extra["end_xy"],
-                "min_motion_px": max(8.0, self.tau_move * img_scale),
-                "min_dir_cos": 0.6,
-                "min_frac": 0.5,
-            })
-            ms_op = "drag"
-        elif op_type == "pinch":
-            # 你后端区分 pinch_in/pinch_out，这里用 scale_sign 指定
-            ms_op = "pinch_out" if extra.get("scale_sign", +1) > 0 else "pinch_in"
-            ms_extra.update({
-                "scale_thr": max(0.06, self.tau_ssim_delta),  # 初版：把 τ_ssim 当作纹理变化下限的近似替代
-                "min_frac": 0.5,
-            })
-        elif op_type == "rotate":
-            ms_op = "rotate"
-            ms_extra.update({
-                "min_deg": max(5.0, self.tau_rot_deg),  # 直接对齐你的角度阈值
-                "min_frac": 0.5,
-            })
-        else:
-            ms_op = op_type  # 兼容后续新op
-
-        ok_geom = ms.verify_action(
-            op=ms_op,
-            pre_bgr=before_img, post_bgr=after_img,
-            center_xy=center, bbox=bbox, extra=ms_extra
+        Returns:
+            bool: whether the action is considered successful on this target.
+        """
+        op = op.lower()
+        bbox = region.get("bbox", [0.0, 0.0, 0.0, 0.0])
+        center_xy = region.get(
+            "center_xy",
+            [bbox[0] + bbox[2] / 2.0, bbox[1] + bbox[3] / 2.0],
+        )
+        cx, cy = float(center_xy[0]), float(center_xy[1])
+        bbox_tuple: Tuple[float, float, float, float] = (
+            float(bbox[0]),
+            float(bbox[1]),
+            float(bbox[2]),
+            float(bbox[3]),
         )
 
-        # —— 汇总（当前仅用几何证据，后续再接 FoELS/SSIM/光流像素统计） ——
-        metrics = {"ok_geom": float(ok_geom)}
-        success = ok_geom
-        evidence = {"geom_backend": "motion_similarity", "bbox": bbox, "center": center}
-        return success, evidence, metrics
+        h, w = pre_bgr.shape[:2]
+        img_diag = float((w * w + h * h) ** 0.5)
+
+        # ---- drag family ------------------------------------------------
+        if op.startswith("drag"):
+            dx = float(params.get("dx", 0.0))
+            dy = float(params.get("dy", 0.0))
+            start_xy = (cx, cy)
+            end_xy = (cx + dx, cy + dy)
+
+            extra = {
+                "start_xy": start_xy,
+                "end_xy": end_xy,
+                "min_motion_px": self.config.tau_move * img_diag,
+                "min_dir_cos": 0.6,
+                "min_frac": self.config.min_frac,
+            }
+            return ms.verify_action(
+                op="drag",
+                pre_bgr=pre_bgr,
+                post_bgr=post_bgr,
+                center_xy=(cx, cy),
+                bbox=bbox_tuple,
+                extra=extra,
+            )
+
+        # ---- rotate family ---------------------------------------------- #
+        if op.startswith("rotate"):
+            extra = {
+                "min_deg": self.config.tau_rot_deg,
+                "min_frac": self.config.min_frac,
+            }
+            return ms.verify_action(
+                op="rotate",
+                pre_bgr=pre_bgr,
+... (truncated)
 ```
 
 ### `yolo_adb_screencap.py`
