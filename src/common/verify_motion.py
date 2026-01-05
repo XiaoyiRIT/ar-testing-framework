@@ -22,7 +22,8 @@ from typing import Optional, Dict, Any, List
 TAG = "AR_OP"
 JSON_RE = re.compile(r'\bAR_OP\b[^{]*({.*})')  # 兼容 "AR_OP   :" / "AR_OP(1234):" 等
 
-KINDS_ALL = ("place_start", "place_ok", "place_fail", "drag", "pinch", "rotate", "tap")
+KINDS_ALL = ("place_start", "place_ok", "place_fail", "drag", "pinch", "rotate", "tap",
+             "long_press_hold", "long_press_end", "double_tap")
 
 def _safe_rate(ok: int, total: int) -> float:
     return 0.0 if total <= 0 else ok / float(total)
@@ -83,7 +84,16 @@ class MotionStats:
                     self._pending_place -= 1
                 self._cnt["place_fail_total"] += 1
                 return
-            # 其余：drag/pinch/rotate/tap
+            # long_press_hold: 不计入统计，只是中间状态
+            if kind == "long_press_hold":
+                return
+            # long_press_end: 统计为 long_press
+            if kind == "long_press_end":
+                self._cnt["long_press_total"] += 1
+                if ok:
+                    self._cnt["long_press_ok"] += 1
+                return
+            # 其余：drag/pinch/rotate/tap/double_tap
             self._cnt[f"{kind}_total"] += 1
             if ok:
                 self._cnt[f"{kind}_ok"] += 1
@@ -105,24 +115,28 @@ class MotionStats:
         pin_ok,  pin_total  = c.get("pinch_ok", 0), c.get("pinch_total", 0)
         rot_ok,  rot_total  = c.get("rotate_ok", 0), c.get("rotate_total", 0)
         tap_ok,  tap_total  = c.get("tap_ok", 0),  c.get("tap_total", 0)
+        lp_ok,   lp_total   = c.get("long_press_ok", 0), c.get("long_press_total", 0)
+        dt_ok,   dt_total   = c.get("double_tap_ok", 0), c.get("double_tap_total", 0)
 
         if basis == "tap":
-            ok_sum  = tap_ok + drag_ok + pin_ok + rot_ok
-            try_sum = tap_total + drag_total + pin_total + rot_total
+            ok_sum  = tap_ok + drag_ok + pin_ok + rot_ok + lp_ok + dt_ok
+            try_sum = tap_total + drag_total + pin_total + rot_total + lp_total + dt_total
         else:  # "place"
-            ok_sum  = place_ok + drag_ok + pin_ok + rot_ok
-            try_sum = place_try + drag_total + pin_total + rot_total
+            ok_sum  = place_ok + drag_ok + pin_ok + rot_ok + lp_ok + dt_ok
+            try_sum = place_try + drag_total + pin_total + rot_total + lp_total + dt_total
 
         return {
             "elapsed_sec": elapsed,
             "counts": c,
-            "place":   {"ok": place_ok, "total": place_try, "rate": _safe_rate(place_ok, place_try)},
-            "drag":    {"ok": drag_ok,  "total": drag_total, "rate": _safe_rate(drag_ok, drag_total)},
-            "pinch":   {"ok": pin_ok,   "total": pin_total,  "rate": _safe_rate(pin_ok, pin_total)},
-            "rotate":  {"ok": rot_ok,   "total": rot_total,  "rate": _safe_rate(rot_ok, rot_total)},
-            "tap":     {"ok": tap_ok,   "total": tap_total,  "rate": _safe_rate(tap_ok, tap_total)},
-            "overall": {"ok": ok_sum,   "total": try_sum,    "rate": _safe_rate(ok_sum, try_sum),
-                        "basis": basis},
+            "place":      {"ok": place_ok, "total": place_try, "rate": _safe_rate(place_ok, place_try)},
+            "drag":       {"ok": drag_ok,  "total": drag_total, "rate": _safe_rate(drag_ok, drag_total)},
+            "pinch":      {"ok": pin_ok,   "total": pin_total,  "rate": _safe_rate(pin_ok, pin_total)},
+            "rotate":     {"ok": rot_ok,   "total": rot_total,  "rate": _safe_rate(rot_ok, rot_total)},
+            "tap":        {"ok": tap_ok,   "total": tap_total,  "rate": _safe_rate(tap_ok, tap_total)},
+            "long_press": {"ok": lp_ok,    "total": lp_total,   "rate": _safe_rate(lp_ok, lp_total)},
+            "double_tap": {"ok": dt_ok,    "total": dt_total,   "rate": _safe_rate(dt_ok, dt_total)},
+            "overall":    {"ok": ok_sum,   "total": try_sum,    "rate": _safe_rate(ok_sum, try_sum),
+                           "basis": basis},
         }
 
     def summary_str(self) -> str:
@@ -130,11 +144,13 @@ class MotionStats:
         lines = []
         lines.append(f"[verify_motion] elapsed={s['elapsed_sec']:.1f}s")
         lines.append("--------------------------------------------------------")
-        lines.append(f"{'place':6s}  ok={s['place']['ok']:4d}  total={s['place']['total']:4d}  succ={s['place']['rate']:6.3f}")
-        lines.append(f"{'drag':6s}  ok={s['drag']['ok']:4d}  total={s['drag']['total']:4d}  succ={s['drag']['rate']:6.3f}")
-        lines.append(f"{'pinch':6s}  ok={s['pinch']['ok']:4d}  total={s['pinch']['total']:4d}  succ={s['pinch']['rate']:6.3f}")
-        lines.append(f"{'rotate':6s} ok={s['rotate']['ok']:4d}  total={s['rotate']['total']:4d}  succ={s['rotate']['rate']:6.3f}")
-        lines.append(f"{'tap':6s}   ok={s['tap']['ok']:4d}  total={s['tap']['total']:4d}  succ={s['tap']['rate']:6.3f}")
+        lines.append(f"{'place':11s}  ok={s['place']['ok']:4d}  total={s['place']['total']:4d}  succ={s['place']['rate']:6.3f}")
+        lines.append(f"{'drag':11s}  ok={s['drag']['ok']:4d}  total={s['drag']['total']:4d}  succ={s['drag']['rate']:6.3f}")
+        lines.append(f"{'pinch':11s}  ok={s['pinch']['ok']:4d}  total={s['pinch']['total']:4d}  succ={s['pinch']['rate']:6.3f}")
+        lines.append(f"{'rotate':11s}  ok={s['rotate']['ok']:4d}  total={s['rotate']['total']:4d}  succ={s['rotate']['rate']:6.3f}")
+        lines.append(f"{'tap':11s}  ok={s['tap']['ok']:4d}  total={s['tap']['total']:4d}  succ={s['tap']['rate']:6.3f}")
+        lines.append(f"{'long_press':11s}  ok={s['long_press']['ok']:4d}  total={s['long_press']['total']:4d}  succ={s['long_press']['rate']:6.3f}")
+        lines.append(f"{'double_tap':11s}  ok={s['double_tap']['ok']:4d}  total={s['double_tap']['total']:4d}  succ={s['double_tap']['rate']:6.3f}")
         lines.append("--------------------------------------------------------")
         lines.append(f"overall(basis={s['overall']['basis']})  ok={s['overall']['ok']:4d}  total={s['overall']['total']:4d}  succ={s['overall']['rate']:6.3f}")
         return "\n".join(lines)

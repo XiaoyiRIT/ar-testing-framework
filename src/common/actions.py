@@ -30,6 +30,32 @@ def long_press(driver, x, y, hold_ms=900):
     f1.create_pointer_up(button=0)
     a.perform()
 
+def double_tap(driver, x, y, tap_interval_ms=100, press_ms=60):
+    """
+    Perform a double-tap gesture at (x, y).
+    tap_interval_ms: time between the two taps
+    press_ms: duration of each tap press
+    """
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+
+    # First tap
+    f1.create_pointer_move(duration=0, x=int(x), y=int(y))
+    f1.create_pointer_down(button=0)
+    f1.create_pause(press_ms/1000.0)
+    f1.create_pointer_up(button=0)
+
+    # Interval between taps
+    f1.create_pause(tap_interval_ms/1000.0)
+
+    # Second tap
+    f1.create_pointer_move(duration=0, x=int(x), y=int(y))
+    f1.create_pointer_down(button=0)
+    f1.create_pause(press_ms/1000.0)
+    f1.create_pointer_up(button=0)
+
+    a.perform()
+
 def drag_line(driver, x1, y1, x2, y2, duration_ms=600):
     a  = ActionBuilder(driver)
     f1 = a.add_pointer_input(kind="touch", name="finger1")
