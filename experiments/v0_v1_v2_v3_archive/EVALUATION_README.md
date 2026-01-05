@@ -45,12 +45,21 @@
 
 ## 🚀 使用方法
 
+### 重要提示
+
+**必须从项目根目录运行此脚本**，因为它需要访问 `src/` 和 `cv/` 目录下的模块。
+
+```bash
+# 切换到项目根目录
+cd /path/to/ar-testing-framework
+
+# 或者如果你在其他目录
+cd /home/user/ar-testing-framework
+```
+
 ### 基础用法
 
 ```bash
-# 需要在项目根目录运行
-cd /home/user/ar-testing-framework
-
 # 基础运行（使用默认参数）
 python experiments/v0_v1_v2_v3_archive/v2_evaluation.py \
     --pkg com.google.ar.sceneform.samples.hellosceneform \

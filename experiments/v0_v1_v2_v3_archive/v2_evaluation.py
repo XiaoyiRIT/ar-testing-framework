@@ -28,13 +28,23 @@ import threading
 import subprocess
 import json
 
-from common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
-from common.actions import tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap
-from cv.strategy_yolo import locate as cv_locate
-from cv.verify_motion import verify_action
+# 添加项目根目录和 src 目录到 Python 路径
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 
-from common.verify_motion import MotionVerifier
-from common.timing import Timing
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+from src.common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
+from src.common.actions import tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap
+from cv.strategy_yolo import locate as cv_locate
+from src.verifier.backends.motion_similarity import verify_action
+
+from src.common.verify_motion import MotionVerifier
+from src.common.timing import Timing
 
 # ----------------- 工具 -----------------
 def _ms(t0: float) -> float:
