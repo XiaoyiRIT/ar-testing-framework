@@ -374,6 +374,10 @@ def run_evaluation(
     unsupported_total = 0  # unsupported operations总数
     unsupported_gt_fail = 0  # unsupported operations中GT=0的数量（理论上应该100%）
 
+    # Non-evaluated operations统计（tap/double_tap/long_press正常样本）
+    non_eval_total = 0  # 不参与CV评估的操作总数
+    non_eval_gt_success = 0  # 其中GT=1的数量
+
     try:
         for i in range(1, rounds + 1):
             T_loop = time.perf_counter()
@@ -564,6 +568,9 @@ def run_evaluation(
                     cv_correct = 0
             else:
                 # tap/double_tap/long_press的正常样本：不参与CV评估
+                non_eval_total += 1
+                if gt_verified == 1:
+                    non_eval_gt_success += 1
                 cv_correct = -1  # 标记为"不适用"
 
             t_verify_wait = _ms(T)
@@ -612,23 +619,31 @@ def run_evaluation(
         # Unsupported operations准确率
         unsupported_accuracy = unsupported_gt_fail / max(1, unsupported_total) if unsupported_total > 0 else 0
 
-        print("\n" + "="*60)
+        print("\n" + "="*70)
         print("[EVALUATION RESULTS]")
-        print("="*60)
-        print(f"Total script operations:      {rounds}")
-        print(f"CV evaluation operations:     {total_ops}  (operations counted in confusion matrix)")
-        print(f"Non-evaluated operations:     {rounds - total_ops}  (tap/double_tap/long_press normal samples)")
+        print("="*70)
+        print(f"Total script operations:           {rounds}")
+        print(f"  - CV evaluation operations:      {total_ops}  (参与confusion matrix)")
+        print(f"  - Non-evaluated operations:      {non_eval_total}  (不参与confusion matrix)")
         print()
-        print(f"CV verified (motion detected): {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
-        print(f"GT verified (app confirmed):   {gt_verified_count}/{rounds} ({100.0*gt_verified_count/max(1,rounds):.1f}%)")
+        print(f"Overall CV/GT statistics:")
+        print(f"  CV verified (motion detected):   {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
+        print(f"  GT verified (app confirmed):     {gt_verified_count}/{rounds} ({100.0*gt_verified_count/max(1,rounds):.1f}%)")
 
-        print("\n" + "-" * 60)
+        print("\n" + "-" * 70)
         print("[Confusion Matrix - CV Algorithm Performance]")
-        print("-" * 60)
+        print("-" * 70)
+        print(f"Based on {total_ops} operations (drag/pinch/rotate + unsupported + negative samples)")
+        print()
         print(f"True Positive (TP):   {tp_count:4d}  (CV=1, GT=1) ✓ Correct detection")
         print(f"True Negative (TN):   {tn_count:4d}  (CV=0, GT=0) ✓ Correct rejection")
         print(f"False Positive (FP):  {fp_count:4d}  (CV=1, GT=0) ✗ False alarm")
         print(f"False Negative (FN):  {fn_count:4d}  (CV=0, GT=1) ✗ Missed detection")
+        print()
+        print(f"TN breakdown:")
+        print(f"  - Unsupported operations:  ~{unsupported_gt_fail}")
+        print(f"  - Negative samples:        ~{tn_count - unsupported_gt_fail}")
+        print(f"  - Failed CV operations:    (included above)")
 
         print("\n" + "-" * 60)
         print("[Overall Metrics]")
@@ -639,15 +654,28 @@ def run_evaluation(
         print(f"F1-Score:  {f1_score:.4f} ({100.0*f1_score:.2f}%)")
 
         if unsupported_total > 0:
-            print("\n" + "-" * 60)
+            print("\n" + "-" * 70)
             print("[Unsupported Operations - False Positive Test]")
-            print("-" * 60)
+            print("-" * 70)
             print(f"Total unsupported ops:        {unsupported_total}")
             print(f"Correctly rejected (GT=0):    {unsupported_gt_fail}  ({100.0*unsupported_accuracy:.2f}%)")
             print(f"Incorrectly accepted (GT=1):  {unsupported_total - unsupported_gt_fail}  ({100.0*(1-unsupported_accuracy):.2f}%)")
             print(f"Expected rejection rate:      100% (app should not respond)")
 
-        print("="*60)
+        if non_eval_total > 0:
+            print("\n" + "-" * 70)
+            print("[Non-Evaluated Operations - tap/double_tap/long_press]")
+            print("-" * 70)
+            print(f"说明：这些操作不参与CV评估，因为CV算法无法验证它们")
+            print(f"      (无视觉运动特征，无法通过optical flow检测)")
+            print()
+            print(f"Total non-evaluated ops:      {non_eval_total}")
+            print(f"  App confirmed (GT=1):       {non_eval_gt_success}  ({100.0*non_eval_gt_success/max(1,non_eval_total):.1f}%)")
+            print(f"  App rejected (GT=0):        {non_eval_total - non_eval_gt_success}  ({100.0*(1-non_eval_gt_success/max(1,non_eval_total)):.1f}%)")
+            print()
+            print(f"注：这{non_eval_gt_success}个GT=1的操作不计入FN，因为CV本来就无法验证它们")
+
+        print("="*70)
 
     finally:
         # 停止定时打印线程
