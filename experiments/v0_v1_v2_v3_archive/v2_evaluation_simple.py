@@ -4,7 +4,7 @@
 v2_evaluation_simple.py — Simple Frame-Diff Evaluation Script
 
 基于 v2_evaluation.py 的流程，移除复杂 CV 验证逻辑，仅在手势前后取帧，
-通过最简单的帧差判断操作是否生效，再与 Ground Truth 对比统计。
+通过帧差 + SSIM 判断操作是否生效，再与 Ground Truth 对比统计。
 """
 
 import argparse
@@ -191,6 +191,27 @@ def _clamp_bbox(bbox, width, height):
     return x, y, w, h
 
 
+def _compute_ssim(gray_a, gray_b):
+    gray_a = gray_a.astype(np.float32)
+    gray_b = gray_b.astype(np.float32)
+    c1 = (0.01 * 255) ** 2
+    c2 = (0.03 * 255) ** 2
+    mu_a = cv2.GaussianBlur(gray_a, (11, 11), 1.5)
+    mu_b = cv2.GaussianBlur(gray_b, (11, 11), 1.5)
+    mu_a2 = mu_a * mu_a
+    mu_b2 = mu_b * mu_b
+    mu_ab = mu_a * mu_b
+
+    sigma_a2 = cv2.GaussianBlur(gray_a * gray_a, (11, 11), 1.5) - mu_a2
+    sigma_b2 = cv2.GaussianBlur(gray_b * gray_b, (11, 11), 1.5) - mu_b2
+    sigma_ab = cv2.GaussianBlur(gray_a * gray_b, (11, 11), 1.5) - mu_ab
+
+    numerator = (2 * mu_ab + c1) * (2 * sigma_ab + c2)
+    denominator = (mu_a2 + mu_b2 + c1) * (sigma_a2 + sigma_b2 + c2)
+    ssim_map = numerator / np.maximum(denominator, 1e-6)
+    return float(np.mean(ssim_map))
+
+
 def simple_frame_diff_ratio(pre_bgr, post_bgr, bbox=None, diff_threshold=18, downsample_w=320):
     if pre_bgr is None or post_bgr is None:
         return 0.0
@@ -211,7 +232,9 @@ def simple_frame_diff_ratio(pre_bgr, post_bgr, bbox=None, diff_threshold=18, dow
     post_g = cv2.cvtColor(post_bgr, cv2.COLOR_BGR2GRAY)
     diff = cv2.absdiff(pre_g, post_g)
     changed = diff > diff_threshold
-    return float(np.count_nonzero(changed)) / float(changed.size)
+    change_ratio = float(np.count_nonzero(changed)) / float(changed.size)
+    ssim_score = _compute_ssim(pre_g, post_g)
+    return change_ratio, ssim_score
 
 
 # ----------------- Ground Truth Detection -----------------
@@ -296,6 +319,7 @@ def run_evaluation(
     verify_wait_ms=140,
     diff_threshold=18,
     min_change_ratio=0.02,
+    ssim_threshold=0.92,
     diff_downsample_w=320,
     # 打印
     print_interval=10,
@@ -305,7 +329,7 @@ def run_evaluation(
     negative_sample_ratio=0.5,
 ):
     """
-    评估版主循环：执行操作 → 帧差验证 → GT检测 → 对比 → 统计准确率
+    评估版主循环：执行操作 → 帧差+SSIM验证 → GT检测 → 对比 → 统计准确率
     """
     if seed is not None:
         random.seed(seed)
@@ -367,7 +391,7 @@ def run_evaluation(
         csv_fp = open(log_csv, "w", newline="", encoding="utf-8")
         csv_writer = csv.writer(csv_fp)
         csv_writer.writerow([
-            "step", "detected", "diff_ratio", "cv_verified", "gt_verified", "cv_correct",
+            "step", "detected", "diff_ratio", "ssim", "cv_verified", "gt_verified", "cv_correct",
             "operation", "is_negative", "is_supported", "cx_img", "cy_img", "bbox_x", "bbox_y", "bbox_w", "bbox_h",
             "message", "cap_ms", "cv_ms", "action_ms", "verify&wait_ms", "total_ms"
         ])
@@ -420,6 +444,7 @@ def run_evaluation(
             gt_verified = 0
             cv_correct = 0
             diff_ratio = 0.0
+            ssim_score = 1.0
             roi_bbox = None
 
             if is_negative or det is None:
@@ -489,14 +514,14 @@ def run_evaluation(
                 time.sleep(verify_wait_ms / 1000.0)
             post_act = capture_bgr(drv)
 
-            diff_ratio = simple_frame_diff_ratio(
+            diff_ratio, ssim_score = simple_frame_diff_ratio(
                 pre_act,
                 post_act,
                 bbox=roi_bbox,
                 diff_threshold=diff_threshold,
                 downsample_w=diff_downsample_w,
             )
-            cv_verified = 1 if diff_ratio >= min_change_ratio else 0
+            cv_verified = 1 if (diff_ratio >= min_change_ratio and ssim_score <= ssim_threshold) else 0
             if cv_verified:
                 cv_verified_count += 1
 
@@ -534,7 +559,8 @@ def run_evaluation(
             if det is None:
                 status = "MISS"
             else:
-                status = f"diff={diff_ratio:.4f} CV={cv_verified} GT={gt_verified} {'✓' if cv_correct else '✗'}"
+                status = (f"diff={diff_ratio:.4f} ssim={ssim_score:.4f} "
+                          f"CV={cv_verified} GT={gt_verified} {'✓' if cv_correct else '✗'}")
             print(
                 f"[v2_eval_simple r{i:03d}] cap={t_cap:.1f}ms  cv={t_cv:.1f}ms  action={t_action:.1f}ms  "
                 f"verify&wait={t_verify_wait:.1f}ms  TOTAL={t_total:.1f}ms  "
@@ -545,7 +571,7 @@ def run_evaluation(
 
             if csv_writer:
                 csv_writer.writerow([
-                    i, detected, f"{diff_ratio:.4f}", cv_verified, gt_verified, cv_correct,
+                    i, detected, f"{diff_ratio:.4f}", f"{ssim_score:.4f}", cv_verified, gt_verified, cv_correct,
                     act_name, 1 if is_negative else 0, 1 if is_supported else 0,
                     cx_out, cy_out, bx, by, bw, bh,
                     msg, f"{t_cap:.1f}", f"{t_cv:.1f}", f"{t_action:.1f}",
@@ -576,7 +602,7 @@ def run_evaluation(
               f"({100.0 * gt_verified_count / max(1, rounds):.1f}%)")
 
         print("\n" + "-" * 70)
-        print("[Confusion Matrix - Frame Diff Performance]")
+        print("[Confusion Matrix - Frame Diff + SSIM Performance]")
         print("-" * 70)
         print(f"Based on {total_ops} operations (all supported + unsupported + negative samples)")
         print()
@@ -700,6 +726,8 @@ def main():
                     help="帧差像素阈值")
     ap.add_argument("--min_change_ratio", type=float, default=0.02,
                     help="判定变化的最小像素比例")
+    ap.add_argument("--ssim_threshold", type=float, default=0.92,
+                    help="SSIM阈值（低于该值判定有变化）")
     ap.add_argument("--diff_downsample_w", type=int, default=320,
                     help="帧差计算的下采样宽度")
 
@@ -734,6 +762,7 @@ def main():
         verify_wait_ms=args.verify_wait_ms,
         diff_threshold=args.diff_threshold,
         min_change_ratio=args.min_change_ratio,
+        ssim_threshold=args.ssim_threshold,
         diff_downsample_w=args.diff_downsample_w,
         print_interval=args.print_interval,
         supported_ops=supported_ops,
