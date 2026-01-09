@@ -374,10 +374,6 @@ def run_evaluation(
     unsupported_total = 0  # unsupported operations总数
     unsupported_gt_fail = 0  # unsupported operations中GT=0的数量（理论上应该100%）
 
-    # Non-evaluated operations统计（tap/double_tap/long_press正常样本）
-    non_eval_total = 0  # 不参与CV评估的操作总数
-    non_eval_gt_success = 0  # 其中GT=1的数量
-
     try:
         for i in range(1, rounds + 1):
             T_loop = time.perf_counter()
@@ -491,8 +487,11 @@ def run_evaluation(
             # 4a) CV验证（仅对可验证的操作和正常样本）
             if enable_verify and det is not None and not is_negative:
                 # 只对正常样本且在AR物体上的操作进行CV验证
-                # 并且只验证支持CV验证的操作类型
-                cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate"]
+                # CV可验证操作分为两类：
+                # 1. Motion-based: drag, pinch_in, pinch_out, rotate (optical flow)
+                # 2. Appearance-based: tap, double_tap, long_press (image difference)
+                cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate",
+                                     "tap", "double_tap", "long_press"]
 
                 if act_name in cv_verifiable_ops:
                     if verify_wait_ms > 0:
@@ -543,13 +542,13 @@ def run_evaluation(
                 if gt_verified == 0:
                     unsupported_gt_fail += 1
 
-            # 4d) 计算 TP/TN/FP/FN（只对CV可评估的操作）
+            # 4d) 计算 TP/TN/FP/FN（所有操作都参与评估）
             # 参与confusion matrix统计的条件：
-            # 1. CV可验证的操作（drag, pinch_in, pinch_out, rotate）
+            # 1. All CV-verifiable operations (motion + appearance based)
             # 2. Unsupported operations（用于测试FP）
             # 3. Negative samples（任何操作在AR物体外）
-            # 不参与统计：tap/double_tap/long_press的正常样本
-            cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate"]
+            cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate",
+                                 "tap", "double_tap", "long_press"]
 
             should_count = (act_name in cv_verifiable_ops) or (not is_supported) or is_negative
 
@@ -567,10 +566,7 @@ def run_evaluation(
                     fn_count += 1
                     cv_correct = 0
             else:
-                # tap/double_tap/long_press的正常样本：不参与CV评估
-                non_eval_total += 1
-                if gt_verified == 1:
-                    non_eval_gt_success += 1
+                # 理论上不应该走到这里（所有操作都应该参与统计）
                 cv_correct = -1  # 标记为"不适用"
 
             t_verify_wait = _ms(T)
@@ -623,17 +619,17 @@ def run_evaluation(
         print("[EVALUATION RESULTS]")
         print("="*70)
         print(f"Total script operations:           {rounds}")
-        print(f"  - CV evaluation operations:      {total_ops}  (参与confusion matrix)")
-        print(f"  - Non-evaluated operations:      {non_eval_total}  (不参与confusion matrix)")
+        print(f"CV evaluation operations:          {total_ops}  (all operations evaluated)")
         print()
         print(f"Overall CV/GT statistics:")
-        print(f"  CV verified (motion detected):   {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
+        print(f"  CV verified (change detected):   {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
         print(f"  GT verified (app confirmed):     {gt_verified_count}/{rounds} ({100.0*gt_verified_count/max(1,rounds):.1f}%)")
 
         print("\n" + "-" * 70)
         print("[Confusion Matrix - CV Algorithm Performance]")
         print("-" * 70)
-        print(f"Based on {total_ops} operations (drag/pinch/rotate + unsupported + negative samples)")
+        print(f"Based on {total_ops} operations (all supported + unsupported + negative samples)")
+        print(f"CV methods: Motion-based (drag/pinch/rotate) + Appearance-based (tap/double_tap/long_press)")
         print()
         print(f"True Positive (TP):   {tp_count:4d}  (CV=1, GT=1) ✓ Correct detection")
         print(f"True Negative (TN):   {tn_count:4d}  (CV=0, GT=0) ✓ Correct rejection")
@@ -661,19 +657,6 @@ def run_evaluation(
             print(f"Correctly rejected (GT=0):    {unsupported_gt_fail}  ({100.0*unsupported_accuracy:.2f}%)")
             print(f"Incorrectly accepted (GT=1):  {unsupported_total - unsupported_gt_fail}  ({100.0*(1-unsupported_accuracy):.2f}%)")
             print(f"Expected rejection rate:      100% (app should not respond)")
-
-        if non_eval_total > 0:
-            print("\n" + "-" * 70)
-            print("[Non-Evaluated Operations - tap/double_tap/long_press]")
-            print("-" * 70)
-            print(f"说明：这些操作不参与CV评估，因为CV算法无法验证它们")
-            print(f"      (无视觉运动特征，无法通过optical flow检测)")
-            print()
-            print(f"Total non-evaluated ops:      {non_eval_total}")
-            print(f"  App confirmed (GT=1):       {non_eval_gt_success}  ({100.0*non_eval_gt_success/max(1,non_eval_total):.1f}%)")
-            print(f"  App rejected (GT=0):        {non_eval_total - non_eval_gt_success}  ({100.0*(1-non_eval_gt_success/max(1,non_eval_total)):.1f}%)")
-            print()
-            print(f"注：这{non_eval_gt_success}个GT=1的操作不计入FN，因为CV本来就无法验证它们")
 
         print("="*70)
 

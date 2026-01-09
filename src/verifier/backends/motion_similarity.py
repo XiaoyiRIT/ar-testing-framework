@@ -250,6 +250,129 @@ def verify_rotate(
         return True
     return False
 
+def verify_tap(
+    pre_bgr: np.ndarray,
+    post_bgr: np.ndarray,
+    center_xy: Point,
+    bbox: Optional[BBox] = None,
+    min_change_ratio: float = 0.02,
+) -> bool:
+    """
+    Verify tap by detecting appearance change (object placement or selection).
+    - Object placement: new object appears (significant pixel change)
+    - Object selection: may have subtle outline change
+    Returns True if detectable visual change occurs.
+    """
+    H, W = pre_bgr.shape[:2]
+
+    # Compute global structural similarity
+    pre_g = _to_gray(pre_bgr)
+    post_g = _to_gray(post_bgr)
+
+    # Method 1: Whole-image difference
+    diff = cv2.absdiff(pre_g, post_g)
+    change_pixels = np.sum(diff > 15)  # pixels with significant change
+    total_pixels = diff.size
+    change_ratio = change_pixels / total_pixels
+
+    if change_ratio >= min_change_ratio:
+        return True
+
+    # Method 2: If bbox provided, check for local change around tap location
+    if bbox is not None:
+        x, y, w, h = _clip_bbox(bbox, W, H)
+        # Expand region slightly to catch selection outlines
+        margin = int(max(w, h) * 0.2)
+        x1 = max(0, x - margin)
+        y1 = max(0, y - margin)
+        x2 = min(W, x + w + margin)
+        y2 = min(H, y + h + margin)
+
+        roi_pre = pre_g[y1:y2, x1:x2]
+        roi_post = post_g[y1:y2, x1:x2]
+        roi_diff = cv2.absdiff(roi_pre, roi_post)
+        roi_change = np.mean(roi_diff)
+
+        if roi_change >= 8.0:  # Local change threshold
+            return True
+
+    return False
+
+def verify_double_tap(
+    pre_bgr: np.ndarray,
+    post_bgr: np.ndarray,
+    center_xy: Point,
+    bbox: BBox,
+    min_disappear_ratio: float = 0.30,
+) -> bool:
+    """
+    Verify double_tap by detecting object disappearance.
+    The object at bbox should vanish, causing significant change in that region.
+    """
+    pre_g = _to_gray(pre_bgr)
+    post_g = _to_gray(post_bgr)
+
+    H, W = pre_g.shape[:2]
+    x, y, w, h = _clip_bbox(bbox, W, H)
+
+    # Extract ROI around the object
+    roi_pre = pre_g[y:y+h, x:x+w]
+    roi_post = post_g[y:y+h, x:x+w]
+
+    # Compute difference in the object region
+    diff = cv2.absdiff(roi_pre, roi_post)
+    changed_pixels = np.sum(diff > 20)
+    total_pixels = diff.size
+
+    change_ratio = changed_pixels / max(1, total_pixels)
+
+    # Large change indicates object disappeared
+    if change_ratio >= min_disappear_ratio:
+        return True
+
+    # Alternative: check if variance dropped significantly (uniform background)
+    var_pre = np.var(roi_pre)
+    var_post = np.var(roi_post)
+    if var_pre > 100 and var_post < var_pre * 0.5:  # Texture disappeared
+        return True
+
+    return False
+
+def verify_long_press(
+    pre_bgr: np.ndarray,
+    post_bgr: np.ndarray,
+    center_xy: Point,
+    bbox: Optional[BBox] = None,
+    min_ui_change: float = 0.05,
+) -> bool:
+    """
+    Verify long_press by detecting UI popup appearance (AlertDialog).
+    Popup typically shows as a darkened background with centered dialog.
+    """
+    pre_g = _to_gray(pre_bgr)
+    post_g = _to_gray(post_bgr)
+
+    # Method 1: Detect overall brightness decrease (dialog overlay)
+    mean_pre = np.mean(pre_g)
+    mean_post = np.mean(post_g)
+    brightness_drop = (mean_pre - mean_post) / max(1.0, mean_pre)
+
+    # Method 2: Detect new high-contrast regions (dialog text/buttons)
+    diff = cv2.absdiff(pre_g, post_g)
+    change_pixels = np.sum(diff > 20)
+    total_pixels = diff.size
+    change_ratio = change_pixels / total_pixels
+
+    # Popup detection: brightness drops + significant change
+    if brightness_drop > 0.05 and change_ratio >= min_ui_change:
+        return True
+
+    # Alternative: just check for significant change (UI appeared)
+    if change_ratio >= min_ui_change * 1.5:
+        return True
+
+    return False
+
 # ------------------------------
 # Public API
 # ------------------------------
@@ -263,9 +386,13 @@ def verify_action(
 ) -> bool:
     """
     Verify result of an operation.
-    Supported ops: 'drag', 'pinch_in', 'pinch_out', 'rotate'
+    Supported ops:
+      - Motion-based: 'drag', 'pinch_in', 'pinch_out', 'rotate'
+      - Appearance-based: 'tap', 'double_tap', 'long_press'
     """
     extra = extra or {}
+
+    # Motion-based verification (optical flow)
     if op == "drag":
         start_xy = extra.get("start_xy", center_xy)
         end_xy   = extra.get("end_xy", center_xy)
@@ -296,4 +423,22 @@ def verify_action(
             min_deg=extra.get("min_deg", 15.0),
             min_frac=extra.get("min_frac", 0.5),
         )
+
+    # Appearance-based verification (image difference)
+    if op == "tap":
+        return verify_tap(
+            pre_bgr, post_bgr, center_xy, bbox,
+            min_change_ratio=extra.get("min_change_ratio", 0.02),
+        )
+    if op == "double_tap":
+        return verify_double_tap(
+            pre_bgr, post_bgr, center_xy, bbox,
+            min_disappear_ratio=extra.get("min_disappear_ratio", 0.30),
+        )
+    if op == "long_press":
+        return verify_long_press(
+            pre_bgr, post_bgr, center_xy, bbox,
+            min_ui_change=extra.get("min_ui_change", 0.05),
+        )
+
     raise ValueError(f"Unsupported op: {op}")
