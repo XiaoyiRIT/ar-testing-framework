@@ -30,18 +30,40 @@
 
 相比 v2_ar_monkey_appium.py，增加了：
 
-1. **新操作类型**：
-   - `long_press` - 长按操作（800-1200ms）
-   - `double_tap` - 双击操作
+1. **更多操作类型** (共10种)：
 
-2. **Ground Truth 检测**：
+   **支持的操作** (app实现了这些)：
+   - `tap` - 单击
+   - `double_tap` - 双击
+   - `drag` - 拖拽
+   - `long_press` - 长按操作（800-1200ms）
+   - `pinch_in` - 捏合缩放
+   - `rotate` - 旋转
+
+   **不支持的操作** (用于测试False Positive)：
+   - `triple_tap` - 三连击
+   - `swipe` - 快速滑动
+   - `two_finger_tap` - 双指点击
+   - `flick` - 轻弹
+
+2. **均匀操作分配**：
+   - 操作次数在各类型之间均匀分配
+   - 使用random seed确保可重现性
+   - 操作顺序随机但可重现
+
+3. **Negative Samples**：
+   - 50%的操作故意在AR物体外执行
+   - 用于测试CV算法的True Negative识别能力
+   - 增加评估的全面性
+
+4. **Ground Truth 检测**：
    - 每次操作后自动从 logcat 读取真实结果
    - 与 CV 验证结果进行对比
 
-3. **详细的评估报告**：
+5. **详细的评估报告**：
    - TP/TN/FP/FN 统计
    - Accuracy, Precision, Recall, F1-Score
-   - CSV 日志包含 GT 结果和正确性标记
+   - CSV 日志包含 GT 结果、是否为negative sample、是否为支持的操作等信息
 
 ## 🚀 使用方法
 
@@ -75,7 +97,9 @@ python experiments/v0_v1_v2_v3_archive/v2_evaluation.py \
     --serial emulator-5554 \
     --rounds 200 \
     --seed 42 \
-    --operations drag,rotate,pinch_in,long_press,double_tap \
+    --supported_ops tap,double_tap,drag,long_press,pinch_in,rotate \
+    --unsupported_ops triple_tap,swipe,two_finger_tap,flick \
+    --negative_sample_ratio 0.5 \
     --verify_wait_ms 200 \
     --log_csv results/evaluation_$(date +%Y%m%d_%H%M%S).csv \
     --print-interval 20
@@ -89,7 +113,9 @@ python experiments/v0_v1_v2_v3_archive/v2_evaluation.py \
 | `--activity` | auto | Activity 名称（auto 自动检测）|
 | `--serial` | - | ADB 设备序列号（单设备可不填）|
 | `--rounds` | 100 | 测试轮数 |
-| `--operations` | drag,rotate,... | 要测试的操作类型（逗号分隔）|
+| `--supported_ops` | tap,double_tap,... | app支持的操作类型（逗号分隔）|
+| `--unsupported_ops` | triple_tap,swipe,... | app不支持的操作类型（逗号分隔）|
+| `--negative_sample_ratio` | 0.5 | Negative sample比例（0.0-1.0）|
 | `--verify_wait_ms` | 200 | 操作后等待时间（ms）|
 | `--log_csv` | - | CSV 日志输出路径 |
 | `--seed` | - | 随机种子（用于可重复性）|
@@ -97,31 +123,71 @@ python experiments/v0_v1_v2_v3_archive/v2_evaluation.py \
 
 ### 操作类型选项
 
-可用的操作类型（用逗号分隔）：
-- `drag` - 拖拽
-- `rotate` - 旋转
-- `pinch_in` - 捏合（缩小）
-- `long_press` - 长按
+**支持的操作** (默认值)：
+- `tap` - 单击
 - `double_tap` - 双击
+- `drag` - 拖拽
+- `long_press` - 长按
+- `pinch_in` - 捏合（缩小）
+- `rotate` - 旋转
 
-示例：
+**不支持的操作** (默认值，用于测试FP)：
+- `triple_tap` - 三连击
+- `swipe` - 快速滑动
+- `two_finger_tap` - 双指点击
+- `flick` - 轻弹
+
+**自定义示例**：
 ```bash
---operations drag,rotate,long_press
+# 只测试部分支持的操作
+--supported_ops tap,drag,rotate
+
+# 添加更多不支持的操作
+--unsupported_ops triple_tap,swipe,two_finger_tap,flick,long_drag
+
+# 调整negative sample比例
+--negative_sample_ratio 0.3  # 30%为negative samples
 ```
 
 ## 📝 输出说明
 
 ### 控制台输出
 
+#### 启动时输出（操作分布）
+```
+[v2_eval] Operation distribution:
+  double_tap        :  20 times  (✓ supported)
+  drag              :  20 times  (✓ supported)
+  flick             :  20 times  (✗ unsupported)
+  long_press        :  20 times  (✓ supported)
+  pinch_in          :  20 times  (✓ supported)
+  rotate            :  20 times  (✓ supported)
+  swipe             :  20 times  (✗ unsupported)
+  tap               :  20 times  (✓ supported)
+  triple_tap        :  20 times  (✗ unsupported)
+  two_finger_tap    :  20 times  (✗ unsupported)
+[v2_eval] Negative samples: 100/200 (50.0%)
+[v2_eval] Random seed: 42
+```
+
 #### 实时输出
 ```
 [v2_eval r001] cap=45.2ms  cv=123.4ms  action=856.3ms  verify&wait=245.8ms  TOTAL=1270.7ms  CV=1 GT=1 ✓:drag
-[001/100] tap+drag from (512,384) to (612,384) bbox=(450,320,124,128)
+[001/100] ✓ tap+drag from (512,384) to (612,384) bbox=(450,320,124,128)
+
+[v2_eval r002] cap=42.1ms  cv=118.2ms  action=723.5ms  verify&wait=220.3ms  TOTAL=1104.1ms  CV=0 GT=0 ✓:triple_tap
+[002/100] NEGATIVE(triple_tap): triple_tap at (250,180) interval=95ms
+
+[v2_eval r003] cap=43.8ms  cv=121.7ms  action=890.2ms  verify&wait=235.1ms  TOTAL=1290.8ms  CV=1 GT=0 ✗:swipe
+[003/100] ✗ swipe from (520,390) to (620,390)
 ```
 
-- `CV=1` 表示 CV 验证通过
-- `GT=1` 表示 Ground Truth 确认成功
+**说明**：
+- `CV=1` 表示 CV 验证通过，`CV=0` 表示未通过
+- `GT=1` 表示 Ground Truth 确认成功，`GT=0` 表示失败
 - `✓` 表示 CV 结果正确，`✗` 表示不正确
+- `✓ 操作名` 表示支持的操作，`✗ 操作名` 表示不支持的操作
+- `NEGATIVE(操作名)` 表示这是 negative sample（在AR物体外操作）
 
 #### 最终评估报告
 ```
@@ -156,10 +222,42 @@ F1-Score:  0.9705
 | gt_verified | Ground Truth 结果（1/0）|
 | cv_correct | CV 是否正确（1/0）|
 | operation | 操作类型 |
+| is_negative | 是否为 negative sample（1/0）|
+| is_supported | 操作是否被app支持（1/0）|
 | cx_img, cy_img | AR 物体中心坐标（图像空间）|
 | bbox_x, bbox_y, bbox_w, bbox_h | 边界框（图像空间）|
 | message | 操作描述 |
 | cap_ms, cv_ms, action_ms, verify&wait_ms, total_ms | 各阶段耗时 |
+
+**CSV数据分析示例**：
+
+```python
+import pandas as pd
+
+df = pd.read_csv('results/eval.csv')
+
+# 按操作类型分析准确率
+accuracy_by_op = df.groupby('operation').agg({
+    'cv_correct': 'mean',
+    'is_supported': 'first',
+    'step': 'count'
+}).rename(columns={'step': 'count', 'cv_correct': 'accuracy'})
+print(accuracy_by_op)
+
+# 分析 supported vs unsupported 的准确率
+print("\nSupported operations accuracy:")
+print(df[df['is_supported'] == 1]['cv_correct'].mean())
+
+print("\nUnsupported operations accuracy:")
+print(df[df['is_supported'] == 0]['cv_correct'].mean())
+
+# 分析 positive vs negative samples 的准确率
+print("\nPositive samples accuracy:")
+print(df[df['is_negative'] == 0]['cv_correct'].mean())
+
+print("\nNegative samples accuracy:")
+print(df[df['is_negative'] == 1]['cv_correct'].mean())
+```
 
 ## ⚠️ 重要注意事项
 

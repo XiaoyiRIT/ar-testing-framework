@@ -56,6 +56,78 @@ def double_tap(driver, x, y, tap_interval_ms=100, press_ms=60):
 
     a.perform()
 
+def triple_tap(driver, x, y, tap_interval_ms=100, press_ms=60):
+    """
+    Perform a triple-tap gesture at (x, y).
+    NOTE: This is typically NOT supported by AR apps - used for testing False Positives
+    """
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+
+    for i in range(3):
+        # Tap
+        f1.create_pointer_move(duration=0, x=int(x), y=int(y))
+        f1.create_pointer_down(button=0)
+        f1.create_pause(press_ms/1000.0)
+        f1.create_pointer_up(button=0)
+
+        # Interval (except after last tap)
+        if i < 2:
+            f1.create_pause(tap_interval_ms/1000.0)
+
+    a.perform()
+
+def swipe(driver, x1, y1, x2, y2, duration_ms=150):
+    """
+    Fast swipe gesture - much faster than drag.
+    NOTE: This is typically NOT supported by AR apps - used for testing False Positives
+    """
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+    f1.create_pointer_move(duration=0, x=int(x1), y=int(y1))
+    f1.create_pointer_down(button=0)
+    f1.create_pause(0.01)  # Very short pause
+    f1.create_pointer_move(duration=duration_ms, x=int(x2), y=int(y2))
+    f1.create_pointer_up(button=0)
+    a.perform()
+
+def two_finger_tap(driver, x, y, finger_dist=100, press_ms=60):
+    """
+    Two-finger tap gesture at (x, y) with fingers separated by finger_dist.
+    NOTE: This is typically NOT supported by AR apps - used for testing False Positives
+    """
+    dx = dy = finger_dist // 2
+    x1, y1 = int(x - dx), int(y - dy)
+    x2, y2 = int(x + dx), int(y + dy)
+
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+    f2 = a.add_pointer_input(kind="touch", name="finger2")
+
+    f1.create_pointer_move(0, x=x1, y=y1)
+    f2.create_pointer_move(0, x=x2, y=y2)
+    f1.create_pointer_down(button=0)
+    f2.create_pointer_down(button=0)
+    f1.create_pause(press_ms/1000.0)
+    f2.create_pause(press_ms/1000.0)
+    f1.create_pointer_up(button=0)
+    f2.create_pointer_up(button=0)
+    a.perform()
+
+def flick(driver, x1, y1, x2, y2, duration_ms=80):
+    """
+    Very fast short-distance swipe (flick).
+    NOTE: This is typically NOT supported by AR apps - used for testing False Positives
+    """
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+    f1.create_pointer_move(duration=0, x=int(x1), y=int(y1))
+    f1.create_pointer_down(button=0)
+    f1.create_pause(0.005)  # Almost instant
+    f1.create_pointer_move(duration=duration_ms, x=int(x2), y=int(y2))
+    f1.create_pointer_up(button=0)
+    a.perform()
+
 def drag_line(driver, x1, y1, x2, y2, duration_ms=600):
     a  = ActionBuilder(driver)
     f1 = a.add_pointer_input(kind="touch", name="finger1")

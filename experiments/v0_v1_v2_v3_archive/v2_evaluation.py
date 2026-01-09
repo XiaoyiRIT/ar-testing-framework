@@ -39,7 +39,8 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 from src.common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
-from src.common.actions import tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap
+from src.common.actions import (tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap,
+                                 triple_tap, swipe, two_finger_tap, flick)
 from cv.strategy_yolo import locate as cv_locate
 from src.verifier.backends.motion_similarity import verify_action
 
@@ -49,6 +50,94 @@ from src.common.timing import Timing
 # ----------------- 工具 -----------------
 def _ms(t0: float) -> float:
     return (time.perf_counter() - t0) * 1000.0
+
+def execute_operation(drv, op_name, cx, cy, W, H, Ww=None, Hw=None, w_img_box=None, h_img_box=None,
+                      drag_ms=(300, 900), rotate_steps=8):
+    """
+    执行指定的操作
+
+    Returns:
+        str: 操作描述信息
+    """
+    if op_name == "tap":
+        tap(drv, cx, cy, press_ms=random.randint(40, 120))
+        return f"tap at ({cx},{cy})"
+
+    elif op_name == "double_tap":
+        interval_ms = random.randint(80, 150)
+        double_tap(drv, cx, cy, tap_interval_ms=interval_ms)
+        return f"double_tap at ({cx},{cy}) interval={interval_ms}ms"
+
+    elif op_name == "triple_tap":
+        interval_ms = random.randint(80, 150)
+        triple_tap(drv, cx, cy, tap_interval_ms=interval_ms)
+        return f"triple_tap at ({cx},{cy}) interval={interval_ms}ms"
+
+    elif op_name == "long_press":
+        hold_ms = random.randint(800, 1200)
+        long_press(drv, cx, cy, hold_ms=hold_ms)
+        return f"long_press at ({cx},{cy}) hold={hold_ms}ms"
+
+    elif op_name == "drag":
+        if Ww is None or Hw is None:
+            Ww = Hw = 100  # default
+        max_step = min(int(min(W, H) / 3), int(0.6 * max(Ww, Hw)))
+        dist = max(40, max_step)
+        dx, dy = random.choice([(dist, 0), (-dist, 0), (0, dist), (0, -dist)])
+        x2 = max(1, min(W - 2, cx + dx))
+        y2 = max(1, min(H - 2, cy + dy))
+        dur = random.randint(*drag_ms)
+        drag_line(drv, cx, cy, x2, y2, duration_ms=dur)
+        return f"drag from ({cx},{cy}) to ({x2},{y2})"
+
+    elif op_name == "swipe":
+        # Fast swipe - short duration
+        max_step = min(int(min(W, H) / 3), 200)
+        dist = random.randint(80, max_step)
+        dx, dy = random.choice([(dist, 0), (-dist, 0), (0, dist), (0, -dist)])
+        x2 = max(1, min(W - 2, cx + dx))
+        y2 = max(1, min(H - 2, cy + dy))
+        swipe(drv, cx, cy, x2, y2, duration_ms=random.randint(100, 180))
+        return f"swipe from ({cx},{cy}) to ({x2},{y2})"
+
+    elif op_name == "flick":
+        # Very fast flick - very short distance
+        dist = random.randint(30, 80)
+        dx, dy = random.choice([(dist, 0), (-dist, 0), (0, dist), (0, -dist)])
+        x2 = max(1, min(W - 2, cx + dx))
+        y2 = max(1, min(H - 2, cy + dy))
+        flick(drv, cx, cy, x2, y2, duration_ms=random.randint(60, 100))
+        return f"flick from ({cx},{cy}) to ({x2},{y2})"
+
+    elif op_name == "pinch_in":
+        if w_img_box is None or h_img_box is None:
+            s, e = 150, 60  # default
+        else:
+            s = max(40, min(w_img_box//2, h_img_box//2, 220))
+            e = max(20, min(s//2, 120))
+        pinch_or_zoom(drv, cx, cy, start_dist=s, end_dist=e,
+                      duration_ms=random.randint(450, 900))
+        return f"pinch_in at ({cx},{cy})"
+
+    elif op_name == "rotate":
+        if Ww is None or Hw is None:
+            radius = 120  # default
+        else:
+            radius = max(60, min(int(max(Ww, Hw)/2), 260))
+        angle = random.choice([45, 60, 90])
+        rotate(drv, cx, cy, radius=radius, angle_deg=angle,
+               duration_ms=random.randint(600, 1100), steps=rotate_steps)
+        return f"rotate at ({cx},{cy}) angle={angle}deg"
+
+    elif op_name == "two_finger_tap":
+        finger_dist = random.randint(80, 150)
+        two_finger_tap(drv, cx, cy, finger_dist=finger_dist)
+        return f"two_finger_tap at ({cx},{cy}) dist={finger_dist}"
+
+    else:
+        # Unknown operation - just tap
+        tap(drv, cx, cy, press_ms=60)
+        return f"unknown_op:{op_name} (fallback to tap)"
 
 def clear_logcat(serial: str = None):
     cmd = ["adb"]
@@ -180,17 +269,52 @@ def run_evaluation(
     # 打印
     print_interval=10,
     # 操作类型
-    operations=None,
+    supported_ops=None,
+    unsupported_ops=None,
+    negative_sample_ratio=0.5,
 ):
     """
     评估版主循环：执行操作 → CV验证 → GT检测 → 对比 → 统计准确率
+
+    Args:
+        supported_ops: app 支持的操作列表
+        unsupported_ops: app 不支持的操作列表（用于测试 False Positive）
+        negative_sample_ratio: negative sample 比例（在AR物体外操作的比例）
     """
     if seed is not None:
         random.seed(seed)
 
     # 默认操作类型
-    if operations is None:
-        operations = ["drag", "rotate", "pinch_in", "long_press", "double_tap"]
+    if supported_ops is None:
+        supported_ops = ["tap", "double_tap", "drag", "long_press", "pinch_in", "rotate"]
+    if unsupported_ops is None:
+        unsupported_ops = ["triple_tap", "swipe", "two_finger_tap", "flick"]
+
+    all_operations = supported_ops + unsupported_ops
+
+    # 生成均匀分配的操作序列
+    operation_plan = []
+    ops_per_type = rounds // len(all_operations)
+    remainder = rounds % len(all_operations)
+
+    for i, op in enumerate(all_operations):
+        count = ops_per_type + (1 if i < remainder else 0)
+        operation_plan.extend([op] * count)
+
+    # 随机打乱顺序（使用 seed 确保可重现）
+    random.shuffle(operation_plan)
+
+    # 为每个操作生成 is_negative_sample 标记
+    negative_plan = [random.random() < negative_sample_ratio for _ in range(rounds)]
+
+    print(f"[v2_eval] Operation distribution:")
+    from collections import Counter
+    op_counts = Counter(operation_plan)
+    for op, count in sorted(op_counts.items()):
+        support_status = "✓ supported" if op in supported_ops else "✗ unsupported"
+        print(f"  {op:18s}: {count:3d} times  ({support_status})")
+    print(f"[v2_eval] Negative samples: {sum(negative_plan)}/{rounds} ({100*sum(negative_plan)/rounds:.1f}%)")
+    print(f"[v2_eval] Random seed: {seed}")
 
     # 计时从此刻开始
     tim = Timing()
@@ -204,7 +328,6 @@ def run_evaluation(
     drv = make_driver(pkg=pkg, activity=activity, serial=serial, warmup_wait=warmup_wait)
     W, H = get_window_size(drv)
     print(f"[v2_eval] {pkg}/{activity or 'auto'}, screen {W}x{H}")
-    print(f"[v2_eval] Operations: {operations}")
 
     # 统计器：清空旧日志，从"当前时刻"开始；overall 基于 tap
     clear_logcat(serial)
@@ -229,7 +352,7 @@ def run_evaluation(
         csv_writer = csv.writer(csv_fp)
         csv_writer.writerow([
             "step", "detected", "cv_verified", "gt_verified", "cv_correct",
-            "operation", "cx_img", "cy_img", "bbox_x", "bbox_y", "bbox_w", "bbox_h",
+            "operation", "is_negative", "is_supported", "cx_img", "cy_img", "bbox_x", "bbox_y", "bbox_w", "bbox_h",
             "message", "cap_ms", "cv_ms", "action_ms", "verify&wait_ms", "total_ms"
         ])
 
@@ -266,6 +389,12 @@ def run_evaluation(
 
             # 3) 决策 & 注入
             T = time.perf_counter()
+
+            # 从预先计划中获取操作类型和是否为negative sample
+            op_name = operation_plan[i - 1]
+            is_negative = negative_plan[i - 1]
+            is_supported = op_name in supported_ops
+
             act_name = None
             msg = ""
             bbox_win = None
@@ -275,8 +404,49 @@ def run_evaluation(
             gt_verified = 0
             cv_correct = 0
 
-            if det is not None:
-                # 图像空间（用于 verify）
+            # 决定操作位置
+            if is_negative or det is None:
+                # Negative sample: 在AR物体外随机位置操作，或者没检测到AR物体
+                h_img, w_img = curr.shape[:2]
+
+                if det is not None and is_negative:
+                    # 有AR物体但故意在外面操作 - 避开检测区域
+                    cx_img, cy_img = det["center"]
+                    x_img, y_img, w_img_box, h_img_box = det["bbox"]
+
+                    # 生成远离AR物体的随机位置
+                    margin = 0.15  # 15% margin from detected object
+                    attempts = 0
+                    while attempts < 10:
+                        rand_cx_img = random.randint(int(w_img * margin), int(w_img * (1 - margin)))
+                        rand_cy_img = random.randint(int(h_img * margin), int(h_img * (1 - margin)))
+
+                        # 检查是否远离AR物体
+                        dist_x = abs(rand_cx_img - cx_img) / w_img
+                        dist_y = abs(rand_cy_img - cy_img) / h_img
+                        if dist_x > 0.2 or dist_y > 0.2:  # 至少20%的距离
+                            break
+                        attempts += 1
+
+                    cx, cy = _map_img_to_window(rand_cx_img, rand_cy_img, w_img, h_img, W, H)
+                    bbox_win = None
+                    msg_prefix = f"NEGATIVE({op_name})"
+                else:
+                    # 完全随机位置（没检测到AR物体）
+                    cx = random.randint(int(W * 0.2), int(W * 0.8))
+                    cy = random.randint(int(H * 0.2), int(H * 0.8))
+                    bbox_win = None
+                    msg_prefix = f"MISS/NEGATIVE({op_name})"
+
+                # 执行操作
+                act_name = op_name
+                pre_act = curr
+                op_msg = execute_operation(drv, op_name, cx, cy, W, H,
+                                         drag_ms=drag_ms, rotate_steps=rotate_steps)
+                msg = f"{msg_prefix}: {op_msg}"
+
+            else:
+                # 正常在AR物体上操作
                 cx_img, cy_img = det["center"]
                 x_img, y_img, w_img_box, h_img_box = det["bbox"]
 
@@ -290,56 +460,20 @@ def run_evaluation(
                 cx_out, cy_out, bx, by, bw, bh = cx_img, cy_img, x_img, y_img, w_img_box, h_img_box
 
                 # 先轻触（可关）
-                if prime_tap:
+                if prime_tap and op_name != "tap":
                     tap(drv, cx, cy, press_ms=random.randint(40, 120))
                     if prime_pause_ms > 0:
                         time.sleep(prime_pause_ms / 1000.0)
 
-                # 在目标动作中随机挑一个
-                op_name = random.choice(operations)
                 act_name = op_name
-
-                # 关键：pre_act 直接用 curr，减少一次抓屏
                 pre_act = curr
 
-                if op_name == "pinch_in":
-                    s = max(40, min(w_img_box//2, h_img_box//2, 220))
-                    e = max(20, min(s//2, 120))
-                    pinch_or_zoom(drv, cx, cy, start_dist=s, end_dist=e,
-                                  duration_ms=random.randint(450, 900))
-                    msg = f"{'tap+' if prime_tap else ''}pinch_in at ({cx},{cy}) bbox={bbox_win}"
+                # 执行操作
+                op_msg = execute_operation(drv, op_name, cx, cy, W, H, Ww, Hw, w_img_box, h_img_box,
+                                         drag_ms=drag_ms, rotate_steps=rotate_steps)
 
-                elif op_name == "rotate":
-                    radius = max(60, min(int(max(Ww, Hw)/2), 260))
-                    angle = random.choice([45, 60, 90])
-                    rotate(drv, cx, cy, radius=radius, angle_deg=angle,
-                           duration_ms=random.randint(600, 1100), steps=rotate_steps)
-                    msg = f"{'tap+' if prime_tap else ''}rotate at ({cx},{cy}) bbox={bbox_win}"
-
-                elif op_name == "drag":
-                    max_step = min(int(min(W, H) / 3), int(0.6 * max(Ww, Hw)))
-                    dist = max(40, max_step)
-                    dx, dy = random.choice([(dist, 0), (-dist, 0), (0, dist), (0, -dist)])
-                    x2 = max(1, min(W - 2, cx + dx))
-                    y2 = max(1, min(H - 2, cy + dy))
-                    dur = random.randint(*drag_ms)
-                    drag_line(drv, cx, cy, x2, y2, duration_ms=dur)
-                    msg = f"{'tap+' if prime_tap else ''}drag from ({cx},{cy}) to ({x2},{y2}) bbox={bbox_win}"
-
-                elif op_name == "long_press":
-                    hold_ms = random.randint(800, 1200)
-                    long_press(drv, cx, cy, hold_ms=hold_ms)
-                    msg = f"{'tap+' if prime_tap else ''}long_press at ({cx},{cy}) hold={hold_ms}ms bbox={bbox_win}"
-
-                elif op_name == "double_tap":
-                    interval_ms = random.randint(80, 150)
-                    double_tap(drv, cx, cy, tap_interval_ms=interval_ms)
-                    msg = f"{'tap+' if prime_tap else ''}double_tap at ({cx},{cy}) interval={interval_ms}ms bbox={bbox_win}"
-
-            else:
-                # MISS：未命中目标
-                act_name = "miss"
-                msg = "MISS"
+                support_tag = "✓" if is_supported else "✗"
+                msg = f"{support_tag} {'tap+' if (prime_tap and op_name != 'tap') else ''}{op_msg} bbox={bbox_win}"
 
             t_action = _ms(T)
 
@@ -410,7 +544,8 @@ def run_evaluation(
             if csv_writer:
                 csv_writer.writerow([
                     i, detected, cv_verified, gt_verified, cv_correct,
-                    act_name, cx_out, cy_out, bx, by, bw, bh,
+                    act_name, 1 if is_negative else 0, 1 if is_supported else 0,
+                    cx_out, cy_out, bx, by, bw, bh,
                     msg, f"{t_cap:.1f}", f"{t_cv:.1f}", f"{t_action:.1f}",
                     f"{t_verify_wait:.1f}", f"{t_total:.1f}"
                 ])
@@ -522,13 +657,20 @@ def main():
                     help="每隔 N 秒打印一次统计；0=仅结束时打印")
 
     # 操作类型
-    ap.add_argument("--operations", type=str, default="drag,rotate,pinch_in,long_press,double_tap",
-                    help="逗号分隔的操作类型列表")
+    ap.add_argument("--supported_ops", type=str,
+                    default="tap,double_tap,drag,long_press,pinch_in,rotate",
+                    help="逗号分隔的app支持的操作类型列表")
+    ap.add_argument("--unsupported_ops", type=str,
+                    default="triple_tap,swipe,two_finger_tap,flick",
+                    help="逗号分隔的app不支持的操作类型列表（用于测试False Positive）")
+    ap.add_argument("--negative_sample_ratio", type=float, default=0.5,
+                    help="Negative sample比例（在AR物体外操作的比例，0.0-1.0）")
 
     args = ap.parse_args()
 
     # 解析操作列表
-    ops = [op.strip() for op in args.operations.split(",")]
+    supported_ops = [op.strip() for op in args.supported_ops.split(",") if op.strip()]
+    unsupported_ops = [op.strip() for op in args.unsupported_ops.split(",") if op.strip()]
 
     run_evaluation(
         pkg=args.pkg,
@@ -548,7 +690,9 @@ def main():
         pinch_scale_thr=args.pinch_scale_thr,
         rotate_min_deg=args.rotate_min_deg,
         print_interval=args.print_interval,
-        operations=ops,
+        supported_ops=supported_ops,
+        unsupported_ops=unsupported_ops,
+        negative_sample_ratio=args.negative_sample_ratio,
     )
 
 if __name__ == "__main__":
