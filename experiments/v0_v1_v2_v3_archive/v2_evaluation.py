@@ -513,11 +513,16 @@ def run_evaluation(
                         (cx_img, cy_img),
                         (x_img, y_img, w_img_box, h_img_box),
                         {
+                            # Motion-based thresholds
                             "scale_thr": pinch_scale_thr,
                             "min_frac": verify_min_frac,
                             "min_deg": rotate_min_deg,
                             "min_motion_px": drag_min_px,
                             "min_dir_cos": drag_dir_cos,
+                            # Appearance-based thresholds (adjustable)
+                            "min_change_ratio": 0.015,      # tap: 1.5% pixel change (default 2%)
+                            "min_disappear_ratio": 0.25,    # double_tap: 25% change (default 30%)
+                            "min_ui_change": 0.04,          # long_press: 4% change (default 5%)
                         }
                     )
                     cv_verified = 1 if ok else 0
