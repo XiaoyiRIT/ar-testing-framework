@@ -632,7 +632,27 @@ def run_evaluation(
             snap["double_tap"]["total"]
         ])
         missing = rounds - counted_attempts
-        print(f"[compare] counted_attempts={counted_attempts}  rounds={rounds}  missing={missing}", flush=True)
+
+        # 说明统计差异的原因
+        print(f"\n[statistics]")
+        print(f"  Script executed:     {rounds} operations")
+        print(f"  Logcat recorded:     {counted_attempts} operations")
+        print(f"  Difference:          {abs(missing)} operations")
+
+        if missing < 0:
+            # Logcat记录比脚本执行多
+            print(f"\n  Note: Logcat recorded MORE operations because:")
+            print(f"    - Prime tap (--prime_tap=1) adds extra tap events before each non-tap operation")
+            print(f"    - Place operations trigger additional tap events")
+            print(f"    - Some operations may trigger multiple app responses")
+        elif missing > 0:
+            # 脚本执行比Logcat记录多
+            print(f"\n  Note: Logcat recorded FEWER operations because:")
+            print(f"    - Negative samples (operations outside AR objects) may not trigger app responses")
+            print(f"    - Unsupported operations do not generate logcat events")
+            print(f"    - Some operations may have failed silently")
+
+        print(flush=True)
 
         print(tim.summary_str(), flush=True)
 
