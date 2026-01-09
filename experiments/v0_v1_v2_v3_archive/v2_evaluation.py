@@ -370,6 +370,13 @@ def run_evaluation(
     fp_count = 0  # False Positive: CV=1, GT=0
     fn_count = 0  # False Negative: CV=0, GT=1
 
+    # 按操作类型统计TP/TN/FP/FN
+    from collections import defaultdict
+    tp_by_op = defaultdict(int)
+    tn_by_op = defaultdict(int)
+    fp_by_op = defaultdict(int)
+    fn_by_op = defaultdict(int)
+
     # Unsupported operations统计
     unsupported_total = 0  # unsupported operations总数
     unsupported_gt_fail = 0  # unsupported operations中GT=0的数量（理论上应该100%）
@@ -506,11 +513,16 @@ def run_evaluation(
                         (cx_img, cy_img),
                         (x_img, y_img, w_img_box, h_img_box),
                         {
+                            # Motion-based thresholds
                             "scale_thr": pinch_scale_thr,
                             "min_frac": verify_min_frac,
                             "min_deg": rotate_min_deg,
                             "min_motion_px": drag_min_px,
                             "min_dir_cos": drag_dir_cos,
+                            # Appearance-based thresholds (adjustable)
+                            "min_change_ratio": 0.015,      # tap: 1.5% pixel change (default 2%)
+                            "min_disappear_ratio": 0.25,    # double_tap: 25% change (default 30%)
+                            "min_ui_change": 0.04,          # long_press: 4% change (default 5%)
                         }
                     )
                     cv_verified = 1 if ok else 0
@@ -555,15 +567,19 @@ def run_evaluation(
             if should_count:
                 if cv_verified == 1 and gt_verified == 1:
                     tp_count += 1
+                    tp_by_op[act_name] += 1
                     cv_correct = 1
                 elif cv_verified == 0 and gt_verified == 0:
                     tn_count += 1
+                    tn_by_op[act_name] += 1
                     cv_correct = 1
                 elif cv_verified == 1 and gt_verified == 0:
                     fp_count += 1
+                    fp_by_op[act_name] += 1
                     cv_correct = 0
                 elif cv_verified == 0 and gt_verified == 1:
                     fn_count += 1
+                    fn_by_op[act_name] += 1
                     cv_correct = 0
             else:
                 # 理论上不应该走到这里（所有操作都应该参与统计）
@@ -635,6 +651,31 @@ def run_evaluation(
         print(f"True Negative (TN):   {tn_count:4d}  (CV=0, GT=0) ✓ Correct rejection")
         print(f"False Positive (FP):  {fp_count:4d}  (CV=1, GT=0) ✗ False alarm")
         print(f"False Negative (FN):  {fn_count:4d}  (CV=0, GT=1) ✗ Missed detection")
+
+        # 详细的操作类型分类统计
+        if fn_count > 0 or fp_count > 0:
+            print("\n" + "-" * 70)
+            print("[Detailed Breakdown by Operation Type]")
+            print("-" * 70)
+
+            if fn_count > 0:
+                print(f"\n❌ False Negative ({fn_count} total) - CV missed these operations:")
+                for op, count in sorted(fn_by_op.items(), key=lambda x: -x[1]):
+                    percentage = 100.0 * count / fn_count
+                    print(f"  {op:20s}: {count:3d} ({percentage:5.1f}%)")
+
+            if fp_count > 0:
+                print(f"\n⚠️  False Positive ({fp_count} total) - CV incorrectly detected:")
+                for op, count in sorted(fp_by_op.items(), key=lambda x: -x[1]):
+                    percentage = 100.0 * count / fp_count
+                    print(f"  {op:20s}: {count:3d} ({percentage:5.1f}%)")
+
+            if tp_count > 0:
+                print(f"\n✓ True Positive ({tp_count} total) - CV correctly detected:")
+                for op, count in sorted(tp_by_op.items(), key=lambda x: -x[1]):
+                    percentage = 100.0 * count / tp_count
+                    print(f"  {op:20s}: {count:3d} ({percentage:5.1f}%)")
+
         print()
         print(f"TN breakdown:")
         print(f"  - Unsupported operations:  ~{unsupported_gt_fail}")
