@@ -477,53 +477,71 @@ def run_evaluation(
 
             t_action = _ms(T)
 
-            # 4) （可选）动作后等待 + CV验证
+            # 4) （可选）动作后等待 + CV验证 + GT检测
             T = time.perf_counter()
-            if enable_verify and det is not None:
+
+            # 4a) CV验证（仅对可验证的操作和正常样本）
+            if enable_verify and det is not None and not is_negative:
+                # 只对正常样本且在AR物体上的操作进行CV验证
+                # 并且只验证支持CV验证的操作类型
+                cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate"]
+
+                if act_name in cv_verifiable_ops:
+                    if verify_wait_ms > 0:
+                        time.sleep(verify_wait_ms / 1000.0)
+                    post_act = capture_bgr(drv)
+
+                    # CV 验证
+                    ok = verify_action(
+                        act_name,
+                        pre_act,
+                        post_act,
+                        (cx_img, cy_img),
+                        (x_img, y_img, w_img_box, h_img_box),
+                        {
+                            "scale_thr": pinch_scale_thr,
+                            "min_frac": verify_min_frac,
+                            "min_deg": rotate_min_deg,
+                            "min_motion_px": drag_min_px,
+                            "min_dir_cos": drag_dir_cos,
+                        }
+                    )
+                    cv_verified = 1 if ok else 0
+                    if cv_verified:
+                        cv_verified_count += 1
+                else:
+                    # 对于不支持CV验证的操作（tap, double_tap, long_press, triple_tap, swipe, flick等）
+                    # 跳过CV验证，设为0
+                    if verify_wait_ms > 0:
+                        time.sleep(verify_wait_ms / 1000.0)
+                    cv_verified = 0
+            else:
+                # negative samples 或 没检测到AR物体：也等待相同时间
                 if verify_wait_ms > 0:
                     time.sleep(verify_wait_ms / 1000.0)
-                post_act = capture_bgr(drv)
+                cv_verified = 0
 
-                # CV 验证
-                ok = verify_action(
-                    act_name,
-                    pre_act,
-                    post_act,
-                    (cx_img, cy_img),
-                    (x_img, y_img, w_img_box, h_img_box),
-                    {
-                        "scale_thr": pinch_scale_thr,
-                        "min_frac": verify_min_frac,
-                        "min_deg": rotate_min_deg,
-                        "min_motion_px": drag_min_px,
-                        "min_dir_cos": drag_dir_cos,
-                    }
-                )
-                cv_verified = 1 if ok else 0
-                if cv_verified:
-                    cv_verified_count += 1
+            # 4b) Ground Truth 检测（对所有操作）
+            # 等待一小段时间确保 logcat 已输出
+            time.sleep(0.1)
+            gt_ok = check_ground_truth(serial, act_name, time_window_sec=2.0)
+            gt_verified = 1 if gt_ok else 0
+            if gt_verified:
+                gt_verified_count += 1
 
-                # Ground Truth 检测
-                # 等待一小段时间确保 logcat 已输出
-                time.sleep(0.1)
-                gt_ok = check_ground_truth(serial, act_name, time_window_sec=2.0)
-                gt_verified = 1 if gt_ok else 0
-                if gt_verified:
-                    gt_verified_count += 1
-
-                # 计算 TP/TN/FP/FN
-                if cv_verified == 1 and gt_verified == 1:
-                    tp_count += 1
-                    cv_correct = 1
-                elif cv_verified == 0 and gt_verified == 0:
-                    tn_count += 1
-                    cv_correct = 1
-                elif cv_verified == 1 and gt_verified == 0:
-                    fp_count += 1
-                    cv_correct = 0
-                elif cv_verified == 0 and gt_verified == 1:
-                    fn_count += 1
-                    cv_correct = 0
+            # 4c) 计算 TP/TN/FP/FN（对所有操作）
+            if cv_verified == 1 and gt_verified == 1:
+                tp_count += 1
+                cv_correct = 1
+            elif cv_verified == 0 and gt_verified == 0:
+                tn_count += 1
+                cv_correct = 1
+            elif cv_verified == 1 and gt_verified == 0:
+                fp_count += 1
+                cv_correct = 0
+            elif cv_verified == 0 and gt_verified == 1:
+                fn_count += 1
+                cv_correct = 0
 
             t_verify_wait = _ms(T)
 
