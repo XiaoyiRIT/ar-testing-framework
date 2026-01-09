@@ -370,6 +370,10 @@ def run_evaluation(
     fp_count = 0  # False Positive: CV=1, GT=0
     fn_count = 0  # False Negative: CV=0, GT=1
 
+    # Unsupported operations统计
+    unsupported_total = 0  # unsupported operations总数
+    unsupported_gt_fail = 0  # unsupported operations中GT=0的数量（理论上应该100%）
+
     try:
         for i in range(1, rounds + 1):
             T_loop = time.perf_counter()
@@ -529,25 +533,49 @@ def run_evaluation(
             if gt_verified:
                 gt_verified_count += 1
 
-            # 4c) 计算 TP/TN/FP/FN（对所有操作）
-            if cv_verified == 1 and gt_verified == 1:
-                tp_count += 1
-                cv_correct = 1
-            elif cv_verified == 0 and gt_verified == 0:
-                tn_count += 1
-                cv_correct = 1
-            elif cv_verified == 1 and gt_verified == 0:
-                fp_count += 1
-                cv_correct = 0
-            elif cv_verified == 0 and gt_verified == 1:
-                fn_count += 1
-                cv_correct = 0
+            # 4c) Unsupported operations单独统计
+            if not is_supported:
+                unsupported_total += 1
+                if gt_verified == 0:
+                    unsupported_gt_fail += 1
+
+            # 4d) 计算 TP/TN/FP/FN（只对CV可评估的操作）
+            # 参与confusion matrix统计的条件：
+            # 1. CV可验证的操作（drag, pinch_in, pinch_out, rotate）
+            # 2. Unsupported operations（用于测试FP）
+            # 3. Negative samples（任何操作在AR物体外）
+            # 不参与统计：tap/double_tap/long_press的正常样本
+            cv_verifiable_ops = ["drag", "pinch_in", "pinch_out", "rotate"]
+
+            should_count = (act_name in cv_verifiable_ops) or (not is_supported) or is_negative
+
+            if should_count:
+                if cv_verified == 1 and gt_verified == 1:
+                    tp_count += 1
+                    cv_correct = 1
+                elif cv_verified == 0 and gt_verified == 0:
+                    tn_count += 1
+                    cv_correct = 1
+                elif cv_verified == 1 and gt_verified == 0:
+                    fp_count += 1
+                    cv_correct = 0
+                elif cv_verified == 0 and gt_verified == 1:
+                    fn_count += 1
+                    cv_correct = 0
+            else:
+                # tap/double_tap/long_press的正常样本：不参与CV评估
+                cv_correct = -1  # 标记为"不适用"
 
             t_verify_wait = _ms(T)
 
             # 5) 打印阶段耗时
             t_total = _ms(T_loop)
-            status = "MISS" if det is None else f"CV={cv_verified} GT={gt_verified} {'✓' if cv_correct else '✗'}"
+            if det is None:
+                status = "MISS"
+            elif cv_correct == -1:
+                status = f"GT={gt_verified} (CV N/A)"
+            else:
+                status = f"CV={cv_verified} GT={gt_verified} {'✓' if cv_correct else '✗'}"
             print(
                 f"[v2_eval r{i:03d}] cap={t_cap:.1f}ms  cv={t_cv:.1f}ms  action={t_action:.1f}ms  "
                 f"verify&wait={t_verify_wait:.1f}ms  TOTAL={t_total:.1f}ms  "
@@ -581,22 +609,44 @@ def run_evaluation(
         recall = tp_count / max(1, tp_count + fn_count)
         f1_score = 2 * precision * recall / max(0.001, precision + recall)
 
+        # Unsupported operations准确率
+        unsupported_accuracy = unsupported_gt_fail / max(1, unsupported_total) if unsupported_total > 0 else 0
+
         print("\n" + "="*60)
         print("[EVALUATION RESULTS]")
         print("="*60)
-        print(f"Total operations: {total_ops}")
-        print(f"CV verified: {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
-        print(f"GT verified: {gt_verified_count}/{rounds} ({100.0*gt_verified_count/max(1,rounds):.1f}%)")
+        print(f"Total script operations:      {rounds}")
+        print(f"CV evaluation operations:     {total_ops}  (operations counted in confusion matrix)")
+        print(f"Non-evaluated operations:     {rounds - total_ops}  (tap/double_tap/long_press normal samples)")
+        print()
+        print(f"CV verified (motion detected): {cv_verified_count}/{rounds} ({100.0*cv_verified_count/max(1,rounds):.1f}%)")
+        print(f"GT verified (app confirmed):   {gt_verified_count}/{rounds} ({100.0*gt_verified_count/max(1,rounds):.1f}%)")
+
+        print("\n" + "-" * 60)
+        print("[Confusion Matrix - CV Algorithm Performance]")
         print("-" * 60)
-        print(f"True Positive (TP):   {tp_count:4d}  (CV=1, GT=1) ✓")
-        print(f"True Negative (TN):   {tn_count:4d}  (CV=0, GT=0) ✓")
-        print(f"False Positive (FP):  {fp_count:4d}  (CV=1, GT=0) ✗ CV误判")
-        print(f"False Negative (FN):  {fn_count:4d}  (CV=0, GT=1) ✗ CV漏检")
+        print(f"True Positive (TP):   {tp_count:4d}  (CV=1, GT=1) ✓ Correct detection")
+        print(f"True Negative (TN):   {tn_count:4d}  (CV=0, GT=0) ✓ Correct rejection")
+        print(f"False Positive (FP):  {fp_count:4d}  (CV=1, GT=0) ✗ False alarm")
+        print(f"False Negative (FN):  {fn_count:4d}  (CV=0, GT=1) ✗ Missed detection")
+
+        print("\n" + "-" * 60)
+        print("[Overall Metrics]")
         print("-" * 60)
-        print(f"Accuracy:  {accuracy:.4f} ({100.0*accuracy:.2f}%)")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall:    {recall:.4f}")
-        print(f"F1-Score:  {f1_score:.4f}")
+        print(f"Accuracy:  {accuracy:.4f} ({100.0*accuracy:.2f}%)  - (TP+TN)/(TP+TN+FP+FN)")
+        print(f"Precision: {precision:.4f} ({100.0*precision:.2f}%)  - TP/(TP+FP)")
+        print(f"Recall:    {recall:.4f} ({100.0*recall:.2f}%)  - TP/(TP+FN)")
+        print(f"F1-Score:  {f1_score:.4f} ({100.0*f1_score:.2f}%)")
+
+        if unsupported_total > 0:
+            print("\n" + "-" * 60)
+            print("[Unsupported Operations - False Positive Test]")
+            print("-" * 60)
+            print(f"Total unsupported ops:        {unsupported_total}")
+            print(f"Correctly rejected (GT=0):    {unsupported_gt_fail}  ({100.0*unsupported_accuracy:.2f}%)")
+            print(f"Incorrectly accepted (GT=1):  {unsupported_total - unsupported_gt_fail}  ({100.0*(1-unsupported_accuracy):.2f}%)")
+            print(f"Expected rejection rate:      100% (app should not respond)")
+
         print("="*60)
 
     finally:
