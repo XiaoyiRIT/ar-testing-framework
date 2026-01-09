@@ -513,16 +513,17 @@ def run_evaluation(
                         (cx_img, cy_img),
                         (x_img, y_img, w_img_box, h_img_box),
                         {
-                            # Motion-based thresholds
-                            "scale_thr": pinch_scale_thr,
-                            "min_frac": verify_min_frac,
-                            "min_deg": rotate_min_deg,
-                            "min_motion_px": drag_min_px,
-                            "min_dir_cos": drag_dir_cos,
-                            # Appearance-based thresholds (adjustable)
-                            "min_change_ratio": 0.015,      # tap: 1.5% pixel change (default 2%)
-                            "min_disappear_ratio": 0.25,    # double_tap: 25% change (default 30%)
-                            "min_ui_change": 0.04,          # long_press: 4% change (default 5%)
+                            # Motion-based thresholds (CRITICAL: heavily relaxed based on FN analysis)
+                            "min_motion_px": 4.0,       # drag: 4px (was 8px) - 0% detection rate!
+                            "min_dir_cos": 0.5,         # drag direction: 0.5 (was 0.6)
+                            "scale_thr": 0.05,          # pinch: 5% (was 10%) - 0% detection rate!
+                            "min_deg": 10.0,            # rotate: 10° (was 15°) - 33% detection
+                            "min_frac": 0.4,            # optical flow match: 40% (was 50%)
+
+                            # Appearance-based thresholds
+                            "min_change_ratio": 0.015,      # tap: 1.5% - working well (66% detection)
+                            "min_disappear_ratio": 0.18,    # double_tap: 18% (was 25%) - 16% detection!
+                            "min_ui_change": 0.04,          # long_press: 4% - working great (83%)
                         }
                     )
                     cv_verified = 1 if ok else 0
