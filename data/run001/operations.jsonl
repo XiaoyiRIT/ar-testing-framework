@@ -1,1 +1,2 @@
 {"index": 1, "operation": "drag", "is_supported": true, "is_negative": true, "detected": false, "bbox": null, "center": [295, 727], "pre_frame": "op_001_pre.png", "post_frame": "op_001_post.png", "gt_verified": false, "message": "drag (295,727)\u2192(378,751) 524ms"}
+{"index": 2, "operation": "rotate", "is_supported": true, "is_negative": false, "detected": true, "bbox": [353, 985, 327, 369], "center": [516, 1169], "pre_frame": "op_002_pre.png", "post_frame": "op_002_post.png", "gt_verified": false, "message": "rotate at (516,1169) steps=8 cw"}
