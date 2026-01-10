@@ -154,8 +154,16 @@ def execute_operation(drv, op_name, cx, cy, W, H, **kwargs):
         return f"drag ({cx},{cy})→({ex},{ey}) {duration_ms}ms"
 
     elif op_name in ["pinch_in", "pinch_out"]:
-        pinch_or_zoom(drv, cx, cy, direction=(op_name == "pinch_out"))
-        return f"{op_name} at ({cx},{cy})"
+        # pinch_in: fingers move closer (start_dist > end_dist)
+        # pinch_out: fingers move apart (start_dist < end_dist)
+        if op_name == "pinch_in":
+            start_dist = 200
+            end_dist = 60
+        else:  # pinch_out
+            start_dist = 60
+            end_dist = 200
+        pinch_or_zoom(drv, cx, cy, start_dist=start_dist, end_dist=end_dist)
+        return f"{op_name} at ({cx},{cy}) {start_dist}→{end_dist}"
 
     elif op_name == "rotate":
         rotate_steps = kwargs.get('rotate_steps', 8)
@@ -169,16 +177,30 @@ def execute_operation(drv, op_name, cx, cy, W, H, **kwargs):
         return f"triple_tap at ({cx},{cy})"
 
     elif op_name == "swipe":
-        swipe(drv, cx, cy)
-        return f"swipe at ({cx},{cy})"
+        # swipe needs start and end points
+        angle = random.uniform(0, 2 * 3.14159)
+        distance = random.randint(100, 200)
+        ex = int(cx + distance * np.cos(angle))
+        ey = int(cy + distance * np.sin(angle))
+        ex = max(0, min(ex, W-1))
+        ey = max(0, min(ey, H-1))
+        swipe(drv, cx, cy, ex, ey, duration_ms=150)
+        return f"swipe ({cx},{cy})→({ex},{ey})"
 
     elif op_name == "two_finger_tap":
         two_finger_tap(drv, cx, cy)
         return f"two_finger_tap at ({cx},{cy})"
 
     elif op_name == "flick":
-        flick(drv, cx, cy)
-        return f"flick at ({cx},{cy})"
+        # flick needs start and end points
+        angle = random.uniform(0, 2 * 3.14159)
+        distance = random.randint(50, 100)  # Shorter distance than swipe
+        ex = int(cx + distance * np.cos(angle))
+        ey = int(cy + distance * np.sin(angle))
+        ex = max(0, min(ex, W-1))
+        ey = max(0, min(ey, H-1))
+        flick(drv, cx, cy, ex, ey, duration_ms=80)
+        return f"flick ({cx},{cy})→({ex},{ey})"
 
     return f"unknown operation: {op_name}"
 
