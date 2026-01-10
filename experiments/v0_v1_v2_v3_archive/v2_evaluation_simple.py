@@ -214,7 +214,7 @@ def _compute_ssim(gray_a, gray_b):
 
 def simple_frame_diff_ratio(pre_bgr, post_bgr, bbox=None, diff_threshold=18, downsample_w=320):
     if pre_bgr is None or post_bgr is None:
-        return 0.0
+        return 0.0, 1.0, 0, 0
 
     h, w = pre_bgr.shape[:2]
     if bbox:
@@ -232,9 +232,11 @@ def simple_frame_diff_ratio(pre_bgr, post_bgr, bbox=None, diff_threshold=18, dow
     post_g = cv2.cvtColor(post_bgr, cv2.COLOR_BGR2GRAY)
     diff = cv2.absdiff(pre_g, post_g)
     changed = diff > diff_threshold
-    change_ratio = float(np.count_nonzero(changed)) / float(changed.size)
+    changed_pixels = int(np.count_nonzero(changed))
+    total_pixels = int(changed.size)
+    change_ratio = float(changed_pixels) / float(max(1, total_pixels))
     ssim_score = _compute_ssim(pre_g, post_g)
-    return change_ratio, ssim_score
+    return change_ratio, ssim_score, changed_pixels, total_pixels
 
 
 # ----------------- Ground Truth Detection -----------------
@@ -313,13 +315,14 @@ def run_evaluation(
     # CSV
     log_csv=None,
     # 预触摸
-    prime_tap=True,
+    prime_tap=False,
     prime_pause_ms=80,
     # 简单差分参数
     verify_wait_ms=140,
     diff_threshold=18,
     min_change_ratio=0.02,
     ssim_threshold=0.92,
+    min_changed_pixels=0,
     diff_downsample_w=320,
     # 打印
     print_interval=10,
@@ -391,7 +394,8 @@ def run_evaluation(
         csv_fp = open(log_csv, "w", newline="", encoding="utf-8")
         csv_writer = csv.writer(csv_fp)
         csv_writer.writerow([
-            "step", "detected", "diff_ratio", "ssim", "cv_verified", "gt_verified", "cv_correct",
+            "step", "detected", "diff_ratio", "ssim", "changed_px", "total_px",
+            "cv_verified", "gt_verified", "cv_correct",
             "operation", "is_negative", "is_supported", "cx_img", "cy_img", "bbox_x", "bbox_y", "bbox_w", "bbox_h",
             "message", "cap_ms", "cv_ms", "action_ms", "verify&wait_ms", "total_ms"
         ])
@@ -413,7 +417,8 @@ def run_evaluation(
     fn_by_op = defaultdict(int)
 
     unsupported_total = 0
-    unsupported_gt_fail = 0
+    unsupported_cv_reject = 0
+    unsupported_cv_accept = 0
 
     try:
         for i in range(1, rounds + 1):
@@ -445,6 +450,8 @@ def run_evaluation(
             cv_correct = 0
             diff_ratio = 0.0
             ssim_score = 1.0
+            changed_pixels = 0
+            total_pixels = 0
             roi_bbox = None
 
             if is_negative or det is None:
@@ -514,14 +521,18 @@ def run_evaluation(
                 time.sleep(verify_wait_ms / 1000.0)
             post_act = capture_bgr(drv)
 
-            diff_ratio, ssim_score = simple_frame_diff_ratio(
+            diff_ratio, ssim_score, changed_pixels, total_pixels = simple_frame_diff_ratio(
                 pre_act,
                 post_act,
                 bbox=roi_bbox,
                 diff_threshold=diff_threshold,
                 downsample_w=diff_downsample_w,
             )
-            cv_verified = 1 if (diff_ratio >= min_change_ratio and ssim_score <= ssim_threshold) else 0
+            cv_verified = 1 if (
+                diff_ratio >= min_change_ratio
+                and ssim_score <= ssim_threshold
+                and (min_changed_pixels <= 0 or changed_pixels >= min_changed_pixels)
+            ) else 0
             if cv_verified:
                 cv_verified_count += 1
 
@@ -533,8 +544,10 @@ def run_evaluation(
 
             if not is_supported:
                 unsupported_total += 1
-                if gt_verified == 0:
-                    unsupported_gt_fail += 1
+                if cv_verified == 0 and gt_verified == 0:
+                    unsupported_cv_reject += 1
+                elif cv_verified == 1 and gt_verified == 0:
+                    unsupported_cv_accept += 1
 
             if cv_verified == 1 and gt_verified == 1:
                 tp_count += 1
@@ -560,6 +573,7 @@ def run_evaluation(
                 status = "MISS"
             else:
                 status = (f"diff={diff_ratio:.4f} ssim={ssim_score:.4f} "
+                          f"px={changed_pixels}/{total_pixels} "
                           f"CV={cv_verified} GT={gt_verified} {'✓' if cv_correct else '✗'}")
             print(
                 f"[v2_eval_simple r{i:03d}] cap={t_cap:.1f}ms  cv={t_cv:.1f}ms  action={t_action:.1f}ms  "
@@ -571,7 +585,8 @@ def run_evaluation(
 
             if csv_writer:
                 csv_writer.writerow([
-                    i, detected, f"{diff_ratio:.4f}", f"{ssim_score:.4f}", cv_verified, gt_verified, cv_correct,
+                    i, detected, f"{diff_ratio:.4f}", f"{ssim_score:.4f}", changed_pixels, total_pixels,
+                    cv_verified, gt_verified, cv_correct,
                     act_name, 1 if is_negative else 0, 1 if is_supported else 0,
                     cx_out, cy_out, bx, by, bw, bh,
                     msg, f"{t_cap:.1f}", f"{t_cv:.1f}", f"{t_action:.1f}",
@@ -587,7 +602,7 @@ def run_evaluation(
         recall = tp_count / max(1, tp_count + fn_count)
         f1_score = 2 * precision * recall / max(0.001, precision + recall)
 
-        unsupported_accuracy = unsupported_gt_fail / max(1, unsupported_total) if unsupported_total > 0 else 0
+        unsupported_accuracy = unsupported_cv_reject / max(1, unsupported_total) if unsupported_total > 0 else 0
 
         print("\n" + "=" * 70)
         print("[EVALUATION RESULTS]")
@@ -636,8 +651,8 @@ def run_evaluation(
 
         print()
         print("TN breakdown:")
-        print(f"  - Unsupported operations:  ~{unsupported_gt_fail}")
-        print(f"  - Negative samples:        ~{tn_count - unsupported_gt_fail}")
+        print(f"  - Unsupported operations:  ~{unsupported_cv_reject}")
+        print(f"  - Negative samples:        ~{tn_count - unsupported_cv_reject}")
         print("  - Failed CV operations:    (included above)")
 
         print("\n" + "-" * 60)
@@ -653,8 +668,8 @@ def run_evaluation(
             print("[Unsupported Operations - False Positive Test]")
             print("-" * 70)
             print(f"Total unsupported ops:        {unsupported_total}")
-            print(f"Correctly rejected (GT=0):    {unsupported_gt_fail}  ({100.0 * unsupported_accuracy:.2f}%)")
-            print(f"Incorrectly accepted (GT=1):  {unsupported_total - unsupported_gt_fail}  "
+            print(f"Correctly rejected (CV=0):    {unsupported_cv_reject}  ({100.0 * unsupported_accuracy:.2f}%)")
+            print(f"Incorrectly accepted (CV=1):  {unsupported_cv_accept}  "
                   f"({100.0 * (1 - unsupported_accuracy):.2f}%)")
             print("Expected rejection rate:      100% (app should not respond)")
 
@@ -715,8 +730,8 @@ def main():
     ap.add_argument("--rounds", type=int, default=100)
     ap.add_argument("--seed", type=int)
 
-    ap.add_argument("--prime_tap", type=int, default=1,
-                    help="1=先轻触再追加手势；0=直接做手势（默认1）")
+    ap.add_argument("--prime_tap", type=int, default=0,
+                    help="1=先轻触再追加手势；0=直接做手势（默认0）")
     ap.add_argument("--prime_pause_ms", type=int, default=80,
                     help="轻触后可选暂停毫秒数，0表示不暂停（默认80）")
 
@@ -728,6 +743,8 @@ def main():
                     help="判定变化的最小像素比例")
     ap.add_argument("--ssim_threshold", type=float, default=0.92,
                     help="SSIM阈值（低于该值判定有变化）")
+    ap.add_argument("--min_changed_pixels", type=int, default=0,
+                    help="变化像素最小数量（<=0 表示不启用）")
     ap.add_argument("--diff_downsample_w", type=int, default=320,
                     help="帧差计算的下采样宽度")
 
@@ -763,6 +780,7 @@ def main():
         diff_threshold=args.diff_threshold,
         min_change_ratio=args.min_change_ratio,
         ssim_threshold=args.ssim_threshold,
+        min_changed_pixels=args.min_changed_pixels,
         diff_downsample_w=args.diff_downsample_w,
         print_interval=args.print_interval,
         supported_ops=supported_ops,
