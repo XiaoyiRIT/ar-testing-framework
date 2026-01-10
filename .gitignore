@@ -53,3 +53,5 @@ results/eval.csv
 data
 data/run001
 
+data/run001/metadata.json
+data/run001/operations.jsonl
