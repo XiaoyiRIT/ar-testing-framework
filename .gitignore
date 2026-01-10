@@ -51,3 +51,4 @@ runs/
 *.jpg
 results/eval.csv
 /data
+/data/run001
