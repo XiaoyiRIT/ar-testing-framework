@@ -50,3 +50,4 @@ runs/
 *.png
 *.jpg
 results/eval.csv
+/data
