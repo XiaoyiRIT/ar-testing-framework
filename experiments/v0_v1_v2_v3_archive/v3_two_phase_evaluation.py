@@ -92,11 +92,12 @@ def check_ground_truth(serial, op_name, time_window_sec=2.0):
     if not target_kind:
         return False  # Unsupported operation
 
-    # Get recent logcat
+    # Get recent logcat using -t (last N lines) instead of -T (timestamp)
+    # We'll get the last 200 lines which should cover the time window
     cmd = ["adb"]
     if serial:
         cmd += ["-s", serial]
-    cmd += ["logcat", "-d", "-T", f"{time_window_sec}"]
+    cmd += ["logcat", "-d", "-t", "200"]
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
@@ -104,10 +105,13 @@ def check_ground_truth(serial, op_name, time_window_sec=2.0):
     except Exception:
         return False
 
-    recent_lines = output.strip().split('\n')[-50:]  # Last 50 lines
+    if not output.strip():
+        return False
+
+    lines = output.strip().split('\n')
 
     # Check for AR_OP with matching kind and ok=true
-    for line in reversed(recent_lines):
+    for line in reversed(lines):
         if "AR_OP" in line and "{" in line:
             try:
                 json_start = line.index("{")
