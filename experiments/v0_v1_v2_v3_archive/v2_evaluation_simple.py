@@ -5,6 +5,15 @@ v2_evaluation_simple.py — Simple Frame-Diff Evaluation Script
 
 基于 v2_evaluation.py 的流程，移除复杂 CV 验证逻辑，仅在手势前后取帧，
 通过帧差 + SSIM 判断操作是否生效，再与 Ground Truth 对比统计。
+
+python3 experiments/v0_v1_v2_v3_archive/v2_evaluation_simple.py \
+  --mode online \
+  --pkg com.google.ar.sceneform.samples.hellosceneform \
+  --rounds 60 \
+  --seed 0 \
+  --dataset_dir results/run_002 \
+  --log_csv results/run_002/online_eval.csv
+
 """
 
 import argparse
@@ -255,7 +264,7 @@ def get_recent_logcat_lines(serial: str = None, num_lines: int = 20):
         return []
 
 
-def check_ground_truth(serial: str, op_name: str):
+def check_ground_truth(serial: str = None, op_name: str = None):
     """
     检查最近的 logcat，看是否有对应操作的成功记录
 
@@ -303,6 +312,7 @@ def check_ground_truth(serial: str, op_name: str):
 def run_evaluation(
     pkg="com.rooom.app",
     activity="auto",
+    # serial is intentionally omitted; adb default device is used
     serial=None,
     rounds=250,
     sleep_min=0.25,
@@ -330,6 +340,9 @@ def run_evaluation(
     supported_ops=None,
     unsupported_ops=None,
     negative_sample_ratio=0.5,
+    # reproducibility
+    dataset_dir=None,
+    record_only=False,
 ):
     """
     评估版主循环：执行操作 → 帧差+SSIM验证 → GT检测 → 对比 → 统计准确率
@@ -363,6 +376,34 @@ def run_evaluation(
     print(f"[v2_eval_simple] Negative samples: {sum(negative_plan)}/{rounds} "
           f"({100*sum(negative_plan)/rounds:.1f}%)")
     print(f"[v2_eval_simple] Random seed: {seed}")
+
+
+# ---- reproducibility: dataset recording ----
+if dataset_dir:
+    os.makedirs(dataset_dir, exist_ok=True)
+    # reset steps.jsonl for a clean run
+    steps_path = os.path.join(dataset_dir, "steps.jsonl")
+    if os.path.exists(steps_path):
+        os.remove(steps_path)
+    run_cfg = {
+        "pkg": pkg,
+        "activity": activity,
+        "rounds": rounds,
+        "seed": seed,
+        "supported_ops": supported_ops,
+        "unsupported_ops": unsupported_ops,
+        "negative_sample_ratio": negative_sample_ratio,
+        "operation_plan": operation_plan,
+        "negative_plan": negative_plan,
+        "verify_wait_ms": verify_wait_ms,
+        "diff_threshold": diff_threshold,
+        "min_change_ratio": min_change_ratio,
+        "ssim_threshold": ssim_threshold,
+        "min_changed_pixels": min_changed_pixels,
+        "diff_downsample_w": diff_downsample_w,
+    }
+    _write_json(os.path.join(dataset_dir, "run_config.json"), run_cfg)
+
 
     tim = Timing()
 
@@ -521,13 +562,37 @@ def run_evaluation(
                 time.sleep(verify_wait_ms / 1000.0)
             post_act = capture_bgr(drv)
 
-            diff_ratio, ssim_score, changed_pixels, total_pixels = simple_frame_diff_ratio(
-                pre_act,
-                post_act,
-                bbox=roi_bbox,
-                diff_threshold=diff_threshold,
-                downsample_w=diff_downsample_w,
-            )
+            # record frames & metadata (for manual inspection / offline eval)
+            if dataset_dir:
+                step_meta = {
+                    "step": i,
+                    "detected": detected,
+                    "operation": act_name,
+                    "is_negative": 1 if is_negative else 0,
+                    "is_supported": 1 if is_supported else 0,
+                    "cx_img": cx_out,
+                    "cy_img": cy_out,
+                    "bbox_x": bx,
+                    "bbox_y": by,
+                    "bbox_w": bw,
+                    "bbox_h": bh,
+                    "roi_bbox": roi_bbox,
+                    "message": msg,
+                }
+                _record_step(dataset_dir, step_meta, pre_act, post_act)
+
+            if record_only:
+                # Skip CV diff/SSIM evaluation in record mode
+                diff_ratio, ssim_score, changed_pixels, total_pixels = 0.0, 1.0, 0, 0
+                cv_verified = 0
+            else:
+                diff_ratio, ssim_score, changed_pixels, total_pixels = simple_frame_diff_ratio(
+                    pre_act,
+                    post_act,
+                    bbox=roi_bbox,
+                    diff_threshold=diff_threshold,
+                    downsample_w=diff_downsample_w,
+                )
             cv_verified = 1 if (
                 diff_ratio >= min_change_ratio
                 and ssim_score <= ssim_threshold
@@ -722,9 +787,239 @@ def run_evaluation(
         ver.stop()
 
 
+
+# ----------------- Reproducibility: record / offline eval -----------------
+def _ensure_dir(p: str):
+    if not p:
+        return
+    os.makedirs(p, exist_ok=True)
+
+
+def _write_json(path: str, obj):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+
+
+def _append_jsonl(path: str, obj):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+
+def _record_step(dataset_dir: str, step_meta: dict, pre_bgr, post_bgr):
+    """
+    Save pre/post frames and step metadata to dataset_dir.
+    Layout:
+      dataset_dir/
+        run_config.json (written once by caller)
+        steps.jsonl      (append)
+        frames/
+          step_0001_pre.png
+          step_0001_post.png
+    """
+    if not dataset_dir:
+        return None, None
+
+    frames_dir = os.path.join(dataset_dir, "frames")
+    _ensure_dir(frames_dir)
+
+    step = int(step_meta.get("step", 0))
+    pre_path = os.path.join(frames_dir, f"step_{step:04d}_pre.png")
+    post_path = os.path.join(frames_dir, f"step_{step:04d}_post.png")
+
+    # PNG for lossless inspection
+    if pre_bgr is not None:
+        cv2.imwrite(pre_path, pre_bgr)
+    if post_bgr is not None:
+        cv2.imwrite(post_path, post_bgr)
+
+    step_meta = dict(step_meta)
+    step_meta["pre_path"] = pre_path
+    step_meta["post_path"] = post_path
+    _append_jsonl(os.path.join(dataset_dir, "steps.jsonl"), step_meta)
+    return pre_path, post_path
+
+
+def run_offline_eval(
+    dataset_dir: str,
+    log_csv: str = None,
+    # diff params
+    diff_threshold: int = 18,
+    min_change_ratio: float = 0.02,
+    ssim_threshold: float = 0.92,
+    min_changed_pixels: int = 0,
+    diff_downsample_w: int = 320,
+):
+    """
+    Offline eval: do NOT operate the app. Only replay saved frames and recompute CV metrics.
+    It uses gt_verified saved in steps.jsonl during record/online mode.
+    """
+    steps_path = os.path.join(dataset_dir, "steps.jsonl")
+    if not os.path.exists(steps_path):
+        raise FileNotFoundError(f"steps.jsonl not found under dataset_dir: {dataset_dir}")
+
+    # CSV
+    csv_fp = csv_writer = None
+    if log_csv:
+        d = os.path.dirname(log_csv)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        csv_fp = open(log_csv, "w", newline="", encoding="utf-8")
+        csv_writer = csv.writer(csv_fp)
+        csv_writer.writerow([
+            "step", "detected", "diff_ratio", "ssim", "changed_px", "total_px",
+            "cv_verified", "gt_verified", "cv_correct",
+            "operation", "is_negative", "is_supported", "cx_img", "cy_img", "bbox_x", "bbox_y", "bbox_w", "bbox_h",
+            "message"
+        ])
+
+    cv_verified_count = 0
+    gt_verified_count = 0
+    tp_count = tn_count = fp_count = fn_count = 0
+
+    from collections import defaultdict
+    tp_by_op = defaultdict(int)
+    tn_by_op = defaultdict(int)
+    fp_by_op = defaultdict(int)
+    fn_by_op = defaultdict(int)
+
+    unsupported_total = 0
+    unsupported_cv_reject = 0
+    unsupported_cv_accept = 0
+
+    with open(steps_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            meta = json.loads(line)
+
+            step = int(meta.get("step", 0))
+            act_name = meta.get("operation", meta.get("act_name", meta.get("op_name", "")))
+            is_negative = int(meta.get("is_negative", 0))
+            is_supported = int(meta.get("is_supported", 0))
+            detected = int(meta.get("detected", 0))
+            roi_bbox = meta.get("roi_bbox", None)
+
+            pre_path = meta.get("pre_path")
+            post_path = meta.get("post_path")
+            pre_act = cv2.imread(pre_path) if pre_path else None
+            post_act = cv2.imread(post_path) if post_path else None
+
+            diff_ratio, ssim_score, changed_pixels, total_pixels = simple_frame_diff_ratio(
+                pre_act,
+                post_act,
+                bbox=roi_bbox,
+                diff_threshold=diff_threshold,
+                downsample_w=diff_downsample_w,
+            )
+            cv_verified = 1 if (
+                diff_ratio >= min_change_ratio
+                and ssim_score <= ssim_threshold
+                and (min_changed_pixels <= 0 or changed_pixels >= min_changed_pixels)
+            ) else 0
+
+            gt_verified = int(meta.get("gt_verified", 0))
+
+            if cv_verified:
+                cv_verified_count += 1
+            if gt_verified:
+                gt_verified_count += 1
+
+            if not is_supported:
+                unsupported_total += 1
+                if cv_verified == 0 and gt_verified == 0:
+                    unsupported_cv_reject += 1
+                elif cv_verified == 1 and gt_verified == 0:
+                    unsupported_cv_accept += 1
+
+            if cv_verified == 1 and gt_verified == 1:
+                tp_count += 1
+                tp_by_op[act_name] += 1
+                cv_correct = 1
+            elif cv_verified == 0 and gt_verified == 0:
+                tn_count += 1
+                tn_by_op[act_name] += 1
+                cv_correct = 1
+            elif cv_verified == 1 and gt_verified == 0:
+                fp_count += 1
+                fp_by_op[act_name] += 1
+                cv_correct = 0
+            else:
+                fn_count += 1
+                fn_by_op[act_name] += 1
+                cv_correct = 0
+
+            if csv_writer:
+                cx_img = meta.get("cx_img", meta.get("cx_out", ""))
+                cy_img = meta.get("cy_img", meta.get("cy_out", ""))
+                bx = meta.get("bbox_x", meta.get("bx", ""))
+                by = meta.get("bbox_y", meta.get("by", ""))
+                bw = meta.get("bbox_w", meta.get("bw", ""))
+                bh = meta.get("bbox_h", meta.get("bh", ""))
+                msg = meta.get("message", meta.get("msg", ""))
+
+                csv_writer.writerow([
+                    step, detected, f"{diff_ratio:.4f}", f"{ssim_score:.4f}", changed_pixels, total_pixels,
+                    cv_verified, gt_verified, cv_correct,
+                    act_name, is_negative, is_supported,
+                    cx_img, cy_img, bx, by, bw, bh,
+                    msg
+                ])
+
+    total_ops = tp_count + tn_count + fp_count + fn_count
+    accuracy = (tp_count + tn_count) / max(1, total_ops)
+    precision = tp_count / max(1, tp_count + fp_count)
+    recall = tp_count / max(1, tp_count + fn_count)
+    f1_score = 2 * precision * recall / max(0.001, precision + recall)
+    unsupported_accuracy = unsupported_cv_reject / max(1, unsupported_total) if unsupported_total > 0 else 0
+
+    print("\n" + "=" * 70)
+    print("[OFFLINE EVALUATION RESULTS]")
+    print("=" * 70)
+    print(f"Dataset dir: {dataset_dir}")
+    print(f"Total steps: {total_ops}")
+    print()
+    print("Overall CV/GT statistics:")
+    print(f"  CV verified (change detected):   {cv_verified_count}/{total_ops} "
+          f"({100.0 * cv_verified_count / max(1, total_ops):.1f}%)")
+    print(f"  GT verified (app confirmed):     {gt_verified_count}/{total_ops} "
+          f"({100.0 * gt_verified_count / max(1, total_ops):.1f}%)")
+
+    print("\n" + "-" * 70)
+    print("[Confusion Matrix - Frame Diff + SSIM Performance]")
+    print("-" * 70)
+    print(f"True Positive (TP):   {tp_count:4d}")
+    print(f"True Negative (TN):   {tn_count:4d}")
+    print(f"False Positive (FP):  {fp_count:4d}")
+    print(f"False Negative (FN):  {fn_count:4d}")
+
+    print("\n" + "-" * 60)
+    print("[Overall Metrics]")
+    print("-" * 60)
+    print(f"Accuracy:  {accuracy:.4f} ({100.0 * accuracy:.2f}%)")
+    print(f"Precision: {precision:.4f} ({100.0 * precision:.2f}%)")
+    print(f"Recall:    {recall:.4f} ({100.0 * recall:.2f}%)")
+    print(f"F1-Score:  {f1_score:.4f} ({100.0 * f1_score:.2f}%)")
+
+    if unsupported_total > 0:
+        print("\n" + "-" * 70)
+        print("[Unsupported Operations - False Positive Test]")
+        print("-" * 70)
+        print(f"Total unsupported ops:        {unsupported_total}")
+        print(f"Correctly rejected (CV=0):    {unsupported_cv_reject}  ({100.0 * unsupported_accuracy:.2f}%)")
+        print(f"Incorrectly accepted (CV=1):  {unsupported_cv_accept}  "
+              f"({100.0 * (1 - unsupported_accuracy):.2f}%)")
+
+    if csv_fp:
+        csv_fp.close()
+
+
 def main():
     ap = argparse.ArgumentParser(description="v2 Simple Frame-Diff Evaluation Script")
-    ap.add_argument("--serial", help="ADB device serial")
+    
+    ap.add_argument("--mode", choices=["online", "record", "offline"], default="online",
+                help="online=边操作边CV评估（默认）；record=只执行操作并保存帧/元数据；offline=仅用已保存帧做CV评估（不操作App）")
+    ap.add_argument("--dataset_dir", default=None,
+                help="保存/读取离线数据集目录（record/online可保存；offline从此目录读取）。目录下会包含 frames/ 与 steps.jsonl")
     ap.add_argument("--pkg", default="com.google.ar.sceneform.samples.hellosceneform")
     ap.add_argument("--activity", default="auto")
     ap.add_argument("--rounds", type=int, default=100)
@@ -767,10 +1062,25 @@ def main():
     supported_ops = [op.strip() for op in args.supported_ops.split(",") if op.strip()]
     unsupported_ops = [op.strip() for op in args.unsupported_ops.split(",") if op.strip()]
 
+    
+if args.mode == "offline":
+    if not args.dataset_dir:
+        raise SystemExit("--mode offline requires --dataset_dir")
+    run_offline_eval(
+        dataset_dir=args.dataset_dir,
+        log_csv=args.log_csv,
+        diff_threshold=args.diff_threshold,
+        min_change_ratio=args.min_change_ratio,
+        ssim_threshold=args.ssim_threshold,
+        min_changed_pixels=args.min_changed_pixels,
+        diff_downsample_w=args.diff_downsample_w,
+    )
+else:
+    # online / record modes run on device; adb will use the default connected device.
     run_evaluation(
         pkg=args.pkg,
         activity=args.activity,
-        serial=args.serial,
+        serial=None,
         rounds=args.rounds,
         seed=args.seed,
         log_csv=args.log_csv,
@@ -786,6 +1096,8 @@ def main():
         supported_ops=supported_ops,
         unsupported_ops=unsupported_ops,
         negative_sample_ratio=args.negative_sample_ratio,
+        dataset_dir=args.dataset_dir,
+        record_only=(args.mode == "record"),
     )
 
 
