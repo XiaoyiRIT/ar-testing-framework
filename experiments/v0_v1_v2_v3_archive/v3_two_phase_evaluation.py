@@ -159,8 +159,9 @@ def execute_operation(drv, op_name, cx, cy, W, H, **kwargs):
 
     elif op_name == "rotate":
         rotate_steps = kwargs.get('rotate_steps', 8)
-        rotate(drv, cx, cy, steps=rotate_steps, clockwise=random.choice([True, False]))
-        return f"rotate at ({cx},{cy}) steps={rotate_steps}"
+        direction = random.choice(["cw", "ccw"])
+        rotate(drv, cx, cy, steps=rotate_steps, direction=direction)
+        return f"rotate at ({cx},{cy}) steps={rotate_steps} {direction}"
 
     # Unsupported operations
     elif op_name == "triple_tap":
