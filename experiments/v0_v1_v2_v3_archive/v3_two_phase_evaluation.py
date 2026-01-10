@@ -246,7 +246,7 @@ def phase1_collect(args):
         random.seed(args.seed)
 
     # Default operation types
-    supported_ops = ["tap", "double_tap", "drag", "long_press", "pinch_in", "rotate"]
+    supported_ops = ["tap", "double_tap", "drag", "long_press", "pinch_in", "pinch_out", "rotate"]
     unsupported_ops = ["triple_tap", "swipe", "two_finger_tap", "flick"]
     all_operations = supported_ops + unsupported_ops
 
