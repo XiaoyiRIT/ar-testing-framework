@@ -114,6 +114,60 @@ def two_finger_tap(driver, x, y, finger_dist=100, press_ms=60):
     f2.create_pointer_up(button=0)
     a.perform()
 
+def two_finger_swipe(driver, x1, y1, x2, y2, finger_dist=100, duration_ms=150):
+    """
+    Two-finger swipe from (x1, y1) to (x2, y2) with fingers separated by finger_dist.
+    NOTE: This is typically NOT supported by AR apps - used for testing False Positives
+    """
+    # Calculate perpendicular offset for two fingers
+    import math
+    dx = x2 - x1
+    dy = y2 - y1
+    length = math.sqrt(dx*dx + dy*dy)
+
+    if length < 1:
+        # No movement, just do parallel fingers
+        offset_x = finger_dist // 2
+        offset_y = 0
+    else:
+        # Perpendicular direction
+        offset_x = int(-dy / length * finger_dist / 2)
+        offset_y = int(dx / length * finger_dist / 2)
+
+    # First finger path
+    f1_x1, f1_y1 = int(x1 + offset_x), int(y1 + offset_y)
+    f1_x2, f1_y2 = int(x2 + offset_x), int(y2 + offset_y)
+
+    # Second finger path
+    f2_x1, f2_y1 = int(x1 - offset_x), int(y1 - offset_y)
+    f2_x2, f2_y2 = int(x2 - offset_x), int(y2 - offset_y)
+
+    a = ActionBuilder(driver)
+    f1 = a.add_pointer_input(kind="touch", name="finger1")
+    f2 = a.add_pointer_input(kind="touch", name="finger2")
+
+    # Both fingers start at their positions
+    f1.create_pointer_move(duration=0, x=f1_x1, y=f1_y1)
+    f2.create_pointer_move(duration=0, x=f2_x1, y=f2_y1)
+
+    # Both fingers press down
+    f1.create_pointer_down(button=0)
+    f2.create_pointer_down(button=0)
+
+    # Small pause before moving
+    f1.create_pause(0.01)
+    f2.create_pause(0.01)
+
+    # Both fingers move to end positions
+    f1.create_pointer_move(duration=duration_ms, x=f1_x2, y=f1_y2)
+    f2.create_pointer_move(duration=duration_ms, x=f2_x2, y=f2_y2)
+
+    # Both fingers lift up
+    f1.create_pointer_up(button=0)
+    f2.create_pointer_up(button=0)
+
+    a.perform()
+
 def flick(driver, x1, y1, x2, y2, duration_ms=80):
     """
     Very fast short-distance swipe (flick).

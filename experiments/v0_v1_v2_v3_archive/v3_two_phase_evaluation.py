@@ -45,7 +45,7 @@ if SRC_DIR not in sys.path:
 
 from src.common.device import make_driver, get_window_size, resolve_main_activity, capture_bgr
 from src.common.actions import (tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap,
-                                triple_tap, swipe, two_finger_tap, flick)
+                                triple_tap, swipe, two_finger_tap, two_finger_swipe, flick)
 from cv.strategy_yolo import locate as cv_locate
 from src.verifier.backends.ssim_verifier import verify_action, compute_ssim, compute_pixel_diff_ratio
 from src.common.verify_motion import MotionVerifier
@@ -181,30 +181,33 @@ def execute_operation(drv, op_name, cx, cy, W, H, **kwargs):
         return f"triple_tap at ({cx},{cy})"
 
     elif op_name == "swipe":
-        # swipe needs start and end points
+        # Use two_finger_swipe to avoid triggering drag on AR objects
         angle = random.uniform(0, 2 * 3.14159)
         distance = random.randint(100, 200)
         ex = int(cx + distance * np.cos(angle))
         ey = int(cy + distance * np.sin(angle))
         ex = max(0, min(ex, W-1))
         ey = max(0, min(ey, H-1))
-        swipe(drv, cx, cy, ex, ey, duration_ms=150)
-        return f"swipe ({cx},{cy})→({ex},{ey})"
+        two_finger_swipe(drv, cx, cy, ex, ey, finger_dist=100, duration_ms=150)
+        return f"two_finger_swipe ({cx},{cy})→({ex},{ey})"
 
     elif op_name == "two_finger_tap":
         two_finger_tap(drv, cx, cy)
         return f"two_finger_tap at ({cx},{cy})"
 
     elif op_name == "flick":
-        # flick needs start and end points
+        # flick with very short distance to avoid triggering drag (max 0.002f normalized)
+        # 0.002f is the app's threshold for detecting drag operations
         angle = random.uniform(0, 2 * 3.14159)
-        distance = random.randint(50, 100)  # Shorter distance than swipe
+        max_distance = int(0.002 * min(W, H))  # Convert normalized distance to pixels
+        max_distance = max(2, max_distance)  # Ensure at least 2 pixels
+        distance = random.randint(1, max_distance)
         ex = int(cx + distance * np.cos(angle))
         ey = int(cy + distance * np.sin(angle))
         ex = max(0, min(ex, W-1))
         ey = max(0, min(ey, H-1))
         flick(drv, cx, cy, ex, ey, duration_ms=80)
-        return f"flick ({cx},{cy})→({ex},{ey})"
+        return f"flick ({cx},{cy})→({ex},{ey}) dist={distance}px"
 
     return f"unknown operation: {op_name}"
 
