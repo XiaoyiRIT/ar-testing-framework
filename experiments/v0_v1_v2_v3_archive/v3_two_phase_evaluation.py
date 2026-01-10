@@ -14,11 +14,11 @@ Advantages:
 
 Usage:
     # Phase 1: Collect data
-    python3 v3_two_phase_evaluation.py --mode collect --rounds 60 --output-dir ./data/run001
+    python3 experiments/v0_v1_v2_v3_archive/v3_two_phase_evaluation.py --mode collect --rounds 60 --seed 0 --output-dir ./data/run001
 
     # Phase 2: Evaluate with different CV methods
-    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method hybrid
-    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method ssim --max-ssim 0.90
+    python3 experiments/v0_v1_v2_v3_archive/v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method hybrid
+    python3 experiments/v0_v1_v2_v3_archive/v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method ssim --max-ssim 0.90
 """
 
 import argparse
@@ -559,7 +559,7 @@ def main():
     # Phase 1 (collect) arguments
     parser.add_argument('--output-dir', type=str, default='./eval_data/run001',
                        help='Output directory for collected data')
-    parser.add_argument('--package', type=str, default='com.rooom.app',
+    parser.add_argument('--package', type=str, default='com.google.ar.sceneform.samples.hellosceneform',
                        help='App package name')
     parser.add_argument('--activity', type=str, default='auto',
                        help='Activity name')

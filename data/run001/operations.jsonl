@@ -1,0 +1,1 @@
+{"index": 1, "operation": "drag", "is_supported": true, "is_negative": true, "detected": false, "bbox": null, "center": [295, 727], "pre_frame": "op_001_pre.png", "post_frame": "op_001_post.png", "gt_verified": false, "message": "drag (295,727)\u2192(378,751) 524ms"}
