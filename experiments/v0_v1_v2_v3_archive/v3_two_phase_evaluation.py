@@ -10,15 +10,24 @@ Advantages:
 1. Reproducibility: Save all frames for repeated experiments
 2. Debuggability: Manually inspect frames
 3. Fast iteration: Modify CV algorithm without re-executing operations
-4. Simple CV: Use SSIM + pixel diff instead of complex optical flow
+4. Robust CV: SSIM + pixel diff + optional enhancements
+
+Robust Verification Enhancements (Phase 2):
+1. Camera Motion Compensation (--enable-alignment): ECC-based image alignment
+2. Connected-Component Filtering (--enable-cc-filter): Suppress fragmented noise
+3. Temporal Consistency (future): Multi-frame verification
 
 Usage:
     # Phase 1: Collect data
     python3 v3_two_phase_evaluation.py --mode collect --rounds 60 --output-dir ./data/run001
 
-    # Phase 2: Evaluate with different CV methods
-    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method hybrid
-    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method ssim --max-ssim 0.90
+    # Phase 2: Basic evaluation
+    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 --cv-method ssim --max-ssim 0.95
+
+    # Phase 2: Robust evaluation with all enhancements
+    python3 v3_two_phase_evaluation.py --mode eval --input-dir ./data/run001 \
+        --cv-method hybrid --max-ssim 0.95 \
+        --enable-alignment --enable-cc-filter --min-component-ratio 0.01
 """
 
 import argparse
@@ -47,7 +56,9 @@ from src.common.device import make_driver, get_window_size, resolve_main_activit
 from src.common.actions import (tap, pinch_or_zoom, rotate, drag_line, long_press, double_tap,
                                 triple_tap, swipe, two_finger_tap, two_finger_swipe, flick)
 from cv.strategy_yolo import locate as cv_locate
-from src.verifier.backends.ssim_verifier import verify_action, compute_ssim, compute_pixel_diff_ratio
+from src.verifier.backends.ssim_verifier import compute_ssim, compute_pixel_diff_ratio
+from src.verifier.backends.ssim_verifier import verify_action as verify_action_simple
+from src.verifier.backends.robust_verifier import verify_action as verify_action_robust
 from src.common.verify_motion import MotionVerifier
 from src.common.timing import Timing
 import cv2
@@ -422,6 +433,16 @@ def phase2_eval(args):
     print(f"CV method: {args.cv_method}")
     print(f"Thresholds: max_ssim={args.max_ssim}, min_change_ratio={args.min_change_ratio}")
 
+    # Robust verification settings
+    use_robust = args.enable_alignment or args.enable_cc_filter
+    if use_robust:
+        print(f"\n🛡️  Robust Verification Enabled:")
+        if args.enable_alignment:
+            print(f"   ✓ Camera Motion Compensation (ECC alignment)")
+        if args.enable_cc_filter:
+            print(f"   ✓ Connected-Component Filtering (min_ratio={args.min_component_ratio})")
+        print()
+
     # Load metadata
     metadata_path = input_dir / 'metadata.json'
     with open(metadata_path, 'r') as f:
@@ -476,18 +497,37 @@ def phase2_eval(args):
             print(f"[{i:03d}] Error loading frames, skipping")
             continue
 
-        # Run CV verification
-        cv_ok = verify_action(
-            op_name,
-            pre_bgr,
-            post_bgr,
-            extra={
-                'method': args.cv_method,
-                'max_ssim': args.max_ssim,
-                'min_change_ratio': args.min_change_ratio,
-                'diff_threshold': args.diff_threshold,
-            }
-        )
+        # Determine which verifier to use
+        if use_robust:
+            # Use robust verifier with enhanced features
+            bbox = None  # Could extract from op_data if saved
+            cv_ok = verify_action_robust(
+                op_name,
+                pre_bgr,
+                post_bgr,
+                bbox=bbox,
+                extra={
+                    'enable_alignment': args.enable_alignment,
+                    'enable_cc_filter': args.enable_cc_filter,
+                    'min_component_ratio': args.min_component_ratio,
+                    'max_ssim': args.max_ssim,
+                    'min_change_ratio': args.min_change_ratio,
+                    'diff_threshold': args.diff_threshold,
+                }
+            )
+        else:
+            # Use simple verifier (backward compatible)
+            cv_ok = verify_action_simple(
+                op_name,
+                pre_bgr,
+                post_bgr,
+                extra={
+                    'method': args.cv_method,
+                    'max_ssim': args.max_ssim,
+                    'min_change_ratio': args.min_change_ratio,
+                    'diff_threshold': args.diff_threshold,
+                }
+            )
 
         # Also compute detailed metrics
         ssim_score = compute_ssim(pre_bgr, post_bgr)
@@ -619,6 +659,14 @@ def main():
                        help='Minimum pixel change ratio (higher = less sensitive)')
     parser.add_argument('--diff-threshold', type=int, default=15,
                        help='Pixel difference threshold')
+
+    # Robust verification enhancements
+    parser.add_argument('--enable-alignment', action='store_true',
+                       help='Enable camera motion compensation (ECC alignment)')
+    parser.add_argument('--enable-cc-filter', action='store_true',
+                       help='Enable connected-component filtering for noise suppression')
+    parser.add_argument('--min-component-ratio', type=float, default=0.01,
+                       help='Minimum component size ratio for CC filtering (default 1%%)')
 
     args = parser.parse_args()
 
